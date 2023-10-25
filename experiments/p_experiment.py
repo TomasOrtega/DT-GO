@@ -1,6 +1,7 @@
 # Import necessary libraries
 import scienceplots  # Importing the scienceplots library for improved plot styling
 import matplotlib.pyplot as plt  # Import Matplotlib for plotting
+import matplotlib  # Import Matplotlib for plotting
 from tqdm import tqdm  # Import tqdm for progress bars
 import numpy as np  # Import NumPy for numerical operations
 import networkx as nx  # Import NetworkX for graph operations
@@ -93,7 +94,10 @@ for p in tqdm([0.1, 0.2, 0.3, 0.4, 0.6]):
 
 # Plot experiment results
 # Apply specific style settings for IEEE publications
-plt.style.use(['ieee', 'high-vis', 'no-latex'])
+plt.style.use(['ieee', 'high-vis'])
+
+# Avoid Type 3 fonts for IEEE publications
+matplotlib.rcParams['text.usetex'] = True
 
 # Create a figure for displaying cost suboptimality results
 plt.figure()
@@ -101,11 +105,11 @@ plt.figure()
 # Plot results for each value of p for cost suboptimality
 for p, cost, to_mean in experiment_results:
     plt.plot(np.arange(1, n_rounds + 1), cost -
-             baseline_cost, label=f'p={p:.1f}')
+             baseline_cost, label=f'$p={p:.1f}$')
 
 # Plot the baseline for cost suboptimality
 plt.plot(np.arange(1, n_rounds + 1), 0 *
-         np.arange(1, n_rounds + 1), label='p=1.0')
+         np.arange(1, n_rounds + 1), label='$p=1.0$')
 
 # Set labels for the axes for cost suboptimality
 plt.xlabel('Round')
@@ -123,11 +127,11 @@ plt.figure()
 # Plot results for each value of p for consensus suboptimality
 for p, cost, to_mean in experiment_results:
     plt.plot(np.arange(1, n_rounds + 1), to_mean -
-             to_mean_baseline, label=f'p={p:.1f}')
+             to_mean_baseline, label=f'$p={p:.1f}$')
 
 # Plot baseline for consensus suboptimality
 plt.plot(np.arange(1, n_rounds + 1), 0 *
-         np.arange(1, n_rounds + 1), label='p=1.0')
+         np.arange(1, n_rounds + 1), label='$p=1.0$')
 
 # Set labels for the axes for consensus suboptimality
 plt.xlabel('Round')
