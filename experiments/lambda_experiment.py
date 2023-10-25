@@ -4,6 +4,7 @@ import scienceplots  # Style for the plots
 import matplotlib.pyplot as plt  # Library for creating plots
 import networkx as nx  # NetworkX for working with graphs
 import numpy as np  # NumPy for numerical operations
+
 # Custom function to generate random directed graphs
 from generate_random_digraph import generate_random_digraph
 from add_delays_to_graph import add_delays_to_graph
@@ -60,8 +61,7 @@ def run_experiment(N, lam, n_rounds):
         deriv = -2 * (np.arange(1, N + 1) - X[0:N])
 
         # Update X using the learning step and adjustment vector
-        X[0:N] -= learning_step * \
-            np.sqrt(N / (k + 1)) * deriv / (adjustment[0:N] * N)
+        X[0:N] -= learning_step * np.sqrt(N / (k + 1)) * deriv / (adjustment[0:N] * N)
 
         # Perform Gossiping for n_goss iterations
         for k_goss in range(n_goss):
@@ -88,34 +88,33 @@ experiment_results = []
 
 # Run experiments for different values of parameter lambda
 for lam in tqdm([0.1, 0.2, 0.3, 0.4]):
-    # TODO -- change n_exp to 100 to replicate the results in the paper
-    n_exp = 1  # Number of experiments to run for each value of lambda
+    n_exp = 100  # Number of experiments to run for each value of lambda
 
     # Run experiments for n_exp iterations
     cost_all, to_mean_all = zip(
-        *(run_experiment(N, lam, n_rounds) for _ in range(n_exp)))
+        *(run_experiment(N, lam, n_rounds) for _ in range(n_exp))
+    )
 
     # Average results over the experiments and store them
     experiment_results.append(
-        (lam, np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0)))
+        (lam, np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
+    )
 
-plt.style.use(['ieee', 'high-vis', 'no-latex'])
+plt.style.use(["ieee", "high-vis", "no-latex"])
 
 # Display results for cost suboptimality
 plt.figure()
 
 # Plot baseline for cost suboptimality
-plt.plot(np.arange(1, n_rounds + 1), 0 *
-         np.arange(1, n_rounds + 1), label='λ=0.0')
+plt.plot(np.arange(1, n_rounds + 1), 0 * np.arange(1, n_rounds + 1), label="λ=0.0")
 
 # Plot results for each value of p for cost suboptimality
 for lam, cost, to_mean in experiment_results:
-    plt.plot(np.arange(1, n_rounds + 1), cost -
-             baseline_cost, label=f'λ={lam:.1f}')
+    plt.plot(np.arange(1, n_rounds + 1), cost - baseline_cost, label=f"λ={lam:.1f}")
 
 # Set labels for the axes for cost suboptimality
-plt.xlabel('Round')
-plt.ylabel('Cost suboptimality')
+plt.xlabel("Round")
+plt.ylabel("Cost suboptimality")
 
 # Set the xlimit to [0, 30] for visibility
 plt.xlim([0, 30])
@@ -125,23 +124,23 @@ plt.legend()
 
 # Save the cost suboptimality plot to a PDF file
 plt.tight_layout()
-plt.savefig('cost_delays.pdf')
+plt.savefig("cost_delays.pdf")
 
 # Display results for consensus suboptimality
 plt.figure()
 
 # Plot baseline for consensus suboptimality
-plt.plot(np.arange(1, n_rounds + 1), 0 *
-         np.arange(1, n_rounds + 1), label='λ=0.0')
+plt.plot(np.arange(1, n_rounds + 1), 0 * np.arange(1, n_rounds + 1), label="λ=0.0")
 
 # Plot results for each value of p for consensus suboptimality
 for lam, cost, to_mean in experiment_results:
-    plt.plot(np.arange(1, n_rounds + 1), to_mean -
-             to_mean_baseline, label=f'λ={lam:.1f}')
+    plt.plot(
+        np.arange(1, n_rounds + 1), to_mean - to_mean_baseline, label=f"λ={lam:.1f}"
+    )
 
 # Set labels for the axes for consensus suboptimality
-plt.xlabel('Round')
-plt.ylabel('Consensus suboptimality')
+plt.xlabel("Round")
+plt.ylabel("Consensus suboptimality")
 
 # Set the xlimit to [0, 30] for visibility
 plt.xlim([0, 30])
@@ -151,4 +150,4 @@ plt.legend()
 
 # Save the consensus suboptimality plot to a PDF file
 plt.tight_layout()
-plt.savefig('consensus_delays.pdf')
+plt.savefig("consensus_delays.pdf")
