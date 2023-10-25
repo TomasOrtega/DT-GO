@@ -1,10 +1,8 @@
 # Import necessary libraries
 from tqdm import tqdm  # For creating progress bars
-import scienceplots  # Style for the plots
-import matplotlib.pyplot as plt  # Library for creating plots
-import matplotlib  # Import Matplotlib for plotting
 import networkx as nx  # NetworkX for working with graphs
 import numpy as np  # NumPy for numerical operations
+import pickle  # For saving experiment results
 
 # Custom function to generate random directed graphs
 from generate_random_digraph import generate_random_digraph
@@ -101,60 +99,7 @@ for lam in tqdm([0.1, 0.2, 0.3, 0.4]):
         (lam, np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
     )
 
-# Apply specific style settings for IEEE publications
-plt.style.use(['ieee', 'high-vis'])
-
-# Avoid Type 3 fonts for IEEE publications
-matplotlib.rcParams['text.usetex'] = True
-
-# Display results for cost suboptimality
-plt.figure()
-
-# Plot baseline for cost suboptimality
-plt.plot(np.arange(1, n_rounds + 1), 0 *
-         np.arange(1, n_rounds + 1), label='$\lambda=0.0$')
-
-# Plot results for each value of p for cost suboptimality
-for lam, cost, to_mean in experiment_results:
-    plt.plot(np.arange(1, n_rounds + 1), cost -
-             baseline_cost, label=f'$\lambda={lam:.1f}$')
-
-# Set labels for the axes for cost suboptimality
-plt.xlabel("Round")
-plt.ylabel("Cost suboptimality")
-
-# Set the xlimit to [0, 30] for visibility
-plt.xlim([0, 30])
-
-# Add a legend to the cost suboptimality plot
-plt.legend()
-
-# Save the cost suboptimality plot to a PDF file
-plt.tight_layout()
-plt.savefig("cost_delays.pdf")
-
-# Display results for consensus suboptimality
-plt.figure()
-
-# Plot baseline for consensus suboptimality
-plt.plot(np.arange(1, n_rounds + 1), 0 *
-         np.arange(1, n_rounds + 1), label='$\lambda=0.0$')
-
-# Plot results for each value of p for consensus suboptimality
-for lam, cost, to_mean in experiment_results:
-    plt.plot(np.arange(1, n_rounds + 1), to_mean -
-             to_mean_baseline, label=f'$\lambda={lam:.1f}$')
-
-# Set labels for the axes for consensus suboptimality
-plt.xlabel("Round")
-plt.ylabel("Consensus suboptimality")
-
-# Set the xlimit to [0, 30] for visibility
-plt.xlim([0, 30])
-
-# Add a legend to the consensus suboptimality plot
-plt.legend()
-
-# Save the consensus suboptimality plot to a PDF file
-plt.tight_layout()
-plt.savefig("consensus_delays.pdf")
+# Save the experiment results to a file
+result_filename = "results/results_lambda.pickle"
+with open(result_filename, "wb") as file:
+    pickle.dump((experiment_results, baseline_cost, to_mean_baseline), file)

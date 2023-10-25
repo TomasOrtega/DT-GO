@@ -1,6 +1,5 @@
 import numpy as np
 import networkx as nx
-from generate_random_digraph import generate_random_digraph
 
 
 def add_delays_to_graph(G, lam, N):

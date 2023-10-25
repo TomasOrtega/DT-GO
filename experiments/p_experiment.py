@@ -1,17 +1,14 @@
 # Import necessary libraries
-import scienceplots  # Importing the scienceplots library for improved plot styling
-import matplotlib.pyplot as plt  # Import Matplotlib for plotting
-import matplotlib  # Import Matplotlib for plotting
 from tqdm import tqdm  # Import tqdm for progress bars
 import numpy as np  # Import NumPy for numerical operations
 import networkx as nx  # Import NetworkX for graph operations
+import pickle  # Import pickle for saving experiment results
 
 # Import a custom function to generate random digraphs
 from generate_random_digraph import generate_random_digraph
 
+
 # Define a function to run the experiment
-
-
 def run_experiment(N, p, n_rounds):
     # Obtain a random connected digraph
     G = generate_random_digraph(N, p)
@@ -93,54 +90,7 @@ for p in tqdm([0.1, 0.2, 0.3, 0.4, 0.6]):
         (p, np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
     )
 
-# Plot experiment results
-# Apply specific style settings for IEEE publications
-plt.style.use(['ieee', 'high-vis'])
-
-# Avoid Type 3 fonts for IEEE publications
-matplotlib.rcParams['text.usetex'] = True
-
-# Create a figure for displaying cost suboptimality results
-plt.figure()
-
-# Plot results for each value of p for cost suboptimality
-for p, cost, to_mean in experiment_results:
-    plt.plot(np.arange(1, n_rounds + 1), cost -
-             baseline_cost, label=f'$p={p:.1f}$')
-
-# Plot the baseline for cost suboptimality
-plt.plot(np.arange(1, n_rounds + 1), 0 *
-         np.arange(1, n_rounds + 1), label='$p=1.0$')
-
-# Set labels for the axes for cost suboptimality
-plt.xlabel("Round")
-plt.ylabel("Cost suboptimality")
-
-# Add a legend to the cost suboptimality plot
-plt.legend()
-
-# Save the cost suboptimality plot to a PDF file
-plt.tight_layout()
-plt.savefig("cost.pdf")  # Save the plot as a PDF file
-
-# Display results for consensus suboptimality
-plt.figure()
-# Plot results for each value of p for consensus suboptimality
-for p, cost, to_mean in experiment_results:
-    plt.plot(np.arange(1, n_rounds + 1), to_mean -
-             to_mean_baseline, label=f'$p={p:.1f}$')
-
-# Plot baseline for consensus suboptimality
-plt.plot(np.arange(1, n_rounds + 1), 0 *
-         np.arange(1, n_rounds + 1), label='$p=1.0$')
-
-# Set labels for the axes for consensus suboptimality
-plt.xlabel("Round")
-plt.ylabel("Consensus suboptimality")
-
-# Add a legend to the consensus suboptimality plot
-plt.legend()
-
-# Save the consensus suboptimality plot to a PDF file
-plt.tight_layout()
-plt.savefig("consensus.pdf")
+# Save the experiment results to a file
+result_filename = "results/results_p.pickle"
+with open(result_filename, "wb") as f:
+    pickle.dump((experiment_results, baseline_cost, to_mean_baseline), f)
