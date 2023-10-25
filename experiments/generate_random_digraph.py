@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 
+
 def generate_random_digraph(n, p):
     """Generates a random directed graph with n nodes and edge probability p.
 
@@ -17,7 +18,7 @@ def generate_random_digraph(n, p):
     returned. If not, the function recursively generates a new graph until it is
     strongly connected.
     """
-    
+
     # Generate an adjacency matrix A for the directed graph with edge probability p
     A = np.random.rand(n, n) < p
 

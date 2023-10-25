@@ -5,6 +5,7 @@ import matplotlib  # Import Matplotlib for plotting
 from tqdm import tqdm  # Import tqdm for progress bars
 import numpy as np  # Import NumPy for numerical operations
 import networkx as nx  # Import NetworkX for graph operations
+
 # Import a custom function to generate random digraphs
 from generate_random_digraph import generate_random_digraph
 
@@ -85,12 +86,12 @@ for p in tqdm([0.1, 0.2, 0.3, 0.4, 0.6]):
     n_exp = 100  # Number of experiments to run for each value of p
 
     # Run experiments for n_exp iterations
-    cost_all, to_mean_all = zip(
-        *(run_experiment(N, p, n_rounds) for _ in range(n_exp)))
+    cost_all, to_mean_all = zip(*(run_experiment(N, p, n_rounds) for _ in range(n_exp)))
 
     # Average results over the experiments and store them
     experiment_results.append(
-        (p, np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0)))
+        (p, np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
+    )
 
 # Plot experiment results
 # Apply specific style settings for IEEE publications
@@ -112,15 +113,15 @@ plt.plot(np.arange(1, n_rounds + 1), 0 *
          np.arange(1, n_rounds + 1), label='$p=1.0$')
 
 # Set labels for the axes for cost suboptimality
-plt.xlabel('Round')
-plt.ylabel('Cost suboptimality')
+plt.xlabel("Round")
+plt.ylabel("Cost suboptimality")
 
 # Add a legend to the cost suboptimality plot
 plt.legend()
 
 # Save the cost suboptimality plot to a PDF file
 plt.tight_layout()
-plt.savefig('cost.pdf')  # Save the plot as a PDF file
+plt.savefig("cost.pdf")  # Save the plot as a PDF file
 
 # Display results for consensus suboptimality
 plt.figure()
@@ -134,12 +135,12 @@ plt.plot(np.arange(1, n_rounds + 1), 0 *
          np.arange(1, n_rounds + 1), label='$p=1.0$')
 
 # Set labels for the axes for consensus suboptimality
-plt.xlabel('Round')
-plt.ylabel('Consensus suboptimality')
+plt.xlabel("Round")
+plt.ylabel("Consensus suboptimality")
 
 # Add a legend to the consensus suboptimality plot
 plt.legend()
 
 # Save the consensus suboptimality plot to a PDF file
 plt.tight_layout()
-plt.savefig('consensus.pdf')
+plt.savefig("consensus.pdf")

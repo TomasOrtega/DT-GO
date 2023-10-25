@@ -29,7 +29,8 @@ def add_delays_to_graph(G, lam, N):
 
     # Add virtual nodes and corresponding edges for delays
     virtual_nodes_row_indices, virtual_nodes_col_indices = np.where(
-        num_delays_matrix > 0)
+        num_delays_matrix > 0
+    )
 
     virtual_nodes = 0  # Initialize the count of virtual nodes
 
@@ -41,6 +42,7 @@ def add_delays_to_graph(G, lam, N):
         virtual_nodes += num_delays
 
     return G, total_virtual_nodes
+
 
 # Example usage:
 # A, virtual_nodes = add_delays_to_graph(A, lam, N)
