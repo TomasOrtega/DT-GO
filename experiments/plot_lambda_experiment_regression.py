@@ -26,8 +26,13 @@ plt.figure()
 #    np.arange(1, n_rounds + 1), 0 * np.arange(1, n_rounds + 1), label="$\lambda=0.0$"
 #)
 
+baseline_cost = None
+
 # Plot results for each value of p for cost suboptimality
 for lam, cost, to_mean in experiment_results:
+    if lam == 0.0:
+        baseline_cost = cost
+        continue
     plt.plot(
         np.arange(1, n_rounds + 1), cost - baseline_cost, label=f"$\lambda={lam:.1f}$"
     )
@@ -59,6 +64,8 @@ plt.figure()
 
 # Plot results for each value of p for consensus suboptimality
 for lam, cost, to_mean in experiment_results:
+    if lam == 0.0:
+        continue
     plt.plot(
         np.arange(1, n_rounds + 1),
         to_mean - to_mean_baseline,

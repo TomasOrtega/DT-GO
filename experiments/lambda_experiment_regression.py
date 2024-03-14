@@ -141,7 +141,7 @@ experiment_results = []
 
 # Run experiments for different values of parameter lambda
 for lam in tqdm([0.0, 0.1, 0.2, 0.3, 0.4]):
-    n_exp = 1#00  # Number of experiments to run for each value of lambda
+    n_exp = 10#0  # Number of experiments to run for each value of lambda
 
     # Run experiments for n_exp iterations
     cost_all, to_mean_all = zip(
