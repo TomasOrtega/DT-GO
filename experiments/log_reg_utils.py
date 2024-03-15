@@ -194,11 +194,9 @@ def top_k(input_vector, k):
 
 
 cmdline_arg_abbr = {
-    'n_local_steps': 'ls',
-    'client_quantizer_type': 'c',
-    'client_quantizer_value': '',
-    'server_quantizer_type': 's',
-    'server_quantizer_value': '',
+    'learning_rate': 'lr',
+    'n_experiments': 'n_exp',
+    'n_rounds': 'T',
 }
 
 

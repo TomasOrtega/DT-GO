@@ -22,13 +22,12 @@ from add_delays_to_graph import add_delays_to_graph
 class Experiment:
     def __init__(self, args):
         self.args = args
-        self.experiment_type = args.experiment_type
         self.n_agents = args.n_agents
         self.n_rounds = args.n_rounds
         self.l2_strength = args.l2_strength
         self.learning_rate = args.learning_rate
-        self.lambdas = args.lambdas
-        self.p_values = args.p_values
+        self.lam = args.lam
+        self.p = args.p
         self.n_experiments = args.n_experiments
         self.results_folder = args.results_folder
         self.baseline_loss = args.baseline_loss
@@ -99,10 +98,10 @@ class Experiment:
         from log_reg_utils import config_dict_to_str
         args = self.args
         runname = config_dict_to_str(vars(args), record_keys=(
-            'n_rounds', 'learning_rate', 'n_experiments'), prefix=self.experiment_type)
+            'p', 'lam', 'n_rounds', 'learning_rate', 'n_experiments'))
         return runname
 
-    def save_results(self, experiment_results, save_dir=None):
+    def save_results(self, experiment_results, save_dir):
         if save_dir is None:
             save_dir = self.save_dir
         # Unpack experiment results and save them to disk
@@ -111,19 +110,12 @@ class Experiment:
         np.save(f"{save_dir}/costs.npy", costs)
         np.save(f"{save_dir}/to_means.npy", to_means)
 
-    def run_one_graph(self, param, initial_model):
+    def run_one_graph(self, initial_model):
 
-        G, virtual_nodes = None, 0
-
-        if self.experiment_type == "lambda":
-            # Obtain a fully connected digraph
-            G = generate_random_digraph(self.n_agents, 1)
-            # Add delays
-            G, virtual_nodes = add_delays_to_graph(G, param, self.n_agents)
-        else:
-            # Remove edges
-            # Obtain a random connected digraph
-            G = generate_random_digraph(self.n_agents, param)
+        # Obtain a strongly connected digraph
+        G = generate_random_digraph(self.n_agents, self.p)
+        # Add delays
+        G, virtual_nodes = add_delays_to_graph(G, self.lam, self.n_agents)
 
         # Get the adjacency matrix
         adj = nx.adjacency_matrix(G).todense()

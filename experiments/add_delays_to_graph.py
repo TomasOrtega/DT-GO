@@ -19,6 +19,9 @@ def add_delays_to_graph(G, lam, N):
     # Generate the delay counts for all edges at once
     num_delays_matrix = np.random.poisson(lam, size=(N, N))
 
+    # Set the delays to zero for edges that do not exist
+    num_delays_matrix[~np.array(nx.to_numpy_array(G), dtype=bool)] = 0
+
     # Set the main diagonal to 0
     num_delays_matrix[np.eye(N, dtype=bool)] = 0
 
