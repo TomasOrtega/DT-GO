@@ -200,7 +200,7 @@ cmdline_arg_abbr = {
 }
 
 
-def config_dict_to_str(args_dict, record_keys=tuple(), leave_out_falsy=True, prefix=None, use_abbr=True,
+def config_dict_to_str(args_dict, record_keys=tuple(), leave_out_falsy=False, prefix=None, use_abbr=True,
                        primary_delimiter='-', secondary_delimiter='_'):
     """
     Given a dictionary of cmdline arguments, return a string that identifies the training run.
