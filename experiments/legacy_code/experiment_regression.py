@@ -3,7 +3,6 @@ import os
 import sys
 import matplotlib.pyplot as plt
 import yaml
-import pickle
 from absl import app
 from absl.flags import argparse_flags
 from tqdm import tqdm  # For creating progress bars
@@ -23,12 +22,13 @@ from add_delays_to_graph import add_delays_to_graph
 class Experiment:
     def __init__(self, args):
         self.args = args
+        self.experiment_type = args.experiment_type
         self.n_agents = args.n_agents
         self.n_rounds = args.n_rounds
         self.l2_strength = args.l2_strength
         self.learning_rate = args.learning_rate
-        self.lam = args.lam
-        self.p = args.p
+        self.lambdas = args.lambdas
+        self.p_values = args.p_values
         self.n_experiments = args.n_experiments
         self.results_folder = args.results_folder
         self.baseline_loss = args.baseline_loss
@@ -93,52 +93,37 @@ class Experiment:
 
         self.data, self.target = data, target
 
-        self.experiment_results = None
+        self.experiment_results = []
 
     def get_runname(self):
         from log_reg_utils import config_dict_to_str
         args = self.args
         runname = config_dict_to_str(vars(args), record_keys=(
-            'p', 'lam', 'n_rounds', 'learning_rate', 'n_experiments'))
+            'n_rounds', 'learning_rate', 'n_experiments'), prefix=self.experiment_type)
         return runname
 
-    def save_results(self, save_dir=None):
+    def save_results(self, experiment_results, save_dir=None):
         if save_dir is None:
             save_dir = self.save_dir
         # Unpack experiment results and save them to disk
-        cost, to_mean = self.experiment_results
-        np.save(f"{save_dir}/cost.npy", cost)
-        np.save(f"{save_dir}/to_mean.npy", to_mean)
+        params, costs, to_means = zip(*experiment_results)
+        np.save(f"{save_dir}/params.npy", params)
+        np.save(f"{save_dir}/costs.npy", costs)
+        np.save(f"{save_dir}/to_means.npy", to_means)
 
-    def save_one_round_results(self, cost, to_mean, G, it, save_dir=None):
-        if save_dir is None:
-            save_dir = self.save_dir
-        # Save the results of the experiment
-        iteration_folder = f"{save_dir}/experiments/{it}"
-        if not os.path.exists(iteration_folder):
-            os.makedirs(iteration_folder)
-        np.save(f"{iteration_folder}/cost.npy", cost)
-        np.save(f"{iteration_folder}/to_mean.npy", to_mean)
-        # Save the graph as a pickle file
-        pickle.dump(G, open(f"{iteration_folder}/graph.pkl", "wb"))
-    
-    def load_one_round_results(self, it, save_dir=None):
-        if save_dir is None:
-            save_dir = self.save_dir
-        # Load the results of the experiment
-        iteration_folder = f"{save_dir}/experiments/{it}"
-        cost = np.load(f"{iteration_folder}/cost.npy")
-        to_mean = np.load(f"{iteration_folder}/to_mean.npy")
-        # Load the graph as a pickle file
-        G = pickle.load(open(f"{iteration_folder}/graph.pkl", "rb"))
-        return cost, to_mean, G
+    def run_one_graph(self, param, initial_model):
 
-    def run_one_graph(self, initial_model):
+        G, virtual_nodes = None, 0
 
-        # Obtain a strongly connected digraph
-        G = generate_random_digraph(self.n_agents, self.p)
-        # Add delays
-        G, virtual_nodes = add_delays_to_graph(G, self.lam, self.n_agents)
+        if self.experiment_type == "lambda":
+            # Obtain a fully connected digraph
+            G = generate_random_digraph(self.n_agents, 1)
+            # Add delays
+            G, virtual_nodes = add_delays_to_graph(G, param, self.n_agents)
+        else:
+            # Remove edges
+            # Obtain a random connected digraph
+            G = generate_random_digraph(self.n_agents, param)
 
         # Get the adjacency matrix
         adj = nx.adjacency_matrix(G).todense()
@@ -201,16 +186,45 @@ class Experiment:
             X = np.dot(np.linalg.matrix_power(W, self.n_gossip), X)
 
         # Return the results of the experiment
-        return global_cost, to_mean, G
+        return global_cost, to_mean
 
     def plot_results(self):
         # Display results for cost suboptimality
         plt.figure()
-        cost, mean = self.experiment_results
-            
-        plt.plot(
-            np.arange(1, self.n_rounds + 1), cost - self.baseline_loss, label=f"f - f*"
-        )
+
+        baseline_cost = self.baseline_loss
+        if self.experiment_type == "lambda":
+            # Set the baseline cost as the cost for lambda = 0
+            for param, cost, _ in self.experiment_results:
+                if param == 0.0:
+                    baseline_cost = cost
+                    break
+        elif self.experiment_type == "p":
+            # Set the baseline cost as the cost for p = 1
+            for param, cost, _ in self.experiment_results:
+                if param == 1.0:
+                    baseline_cost = cost
+                    break
+                
+
+        # Plot results for each value of p for cost suboptimality
+        for param, cost, to_mean in self.experiment_results:
+            if self.args.experiment_type == "lambda":
+                if param == 0.0:
+                    continue
+                plt.plot(
+                    np.arange(1, self.n_rounds + 1), cost - baseline_cost, label=f"$\lambda={param:.1f}$"
+                )
+            elif self.args.experiment_type == "p":
+                if param == 1.0:
+                    continue
+                plt.plot(
+                    np.arange(1, self.n_rounds + 1), cost - baseline_cost, label=f"$p={param:.1f}$"
+                )
+            else:
+                plt.plot(
+                    np.arange(1, self.n_rounds + 1), cost - self.baseline_loss, label=f"f - f*"
+                )
 
         plt.xlabel("Round")
         plt.ylabel("Cost suboptimality")
@@ -226,25 +240,37 @@ class Experiment:
 
     def run_experiment(self):
         print(f"Running experiment {self.runname}...")
-        
-        cost_all = []
-        to_mean_all = []
-        for it in tqdm(range(self.n_experiments)):
-            # Run the experiment for the current parameter and iteration, and store the results
-            cost, to_mean, G = self.run_one_graph(self.global_model.copy())
-            if not self.test_run:
-                self.save_one_round_results(cost, to_mean, G, it)
-            cost_all.append(cost)
-            to_mean_all.append(to_mean)
+        parameters = [1]
+        if self.experiment_type == "lambda":
+            parameters = self.lambdas
+        elif self.experiment_type == "p":
+            parameters = self.p_values
+        else:
+            self.experiment_type = "p"
 
-        # Average results over the experiments and store them
-        self.experiment_results = (np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
+        # Run experiments for different values of parameter (lambda, p, or nothing)
+        for param in tqdm(parameters):
+            cost_all = []
+            to_mean_all = []
+            for it in tqdm(range(self.n_experiments), leave=False):
+                # Run the experiment for the current parameter and iteration, and store the results
+                cost, to_mean = self.run_one_graph(
+                    param, self.global_model.copy())
+                cost_all.append(cost)
+                to_mean_all.append(to_mean)
+
+            # Average results over the experiments and store them
+            self.experiment_results.append(
+                (param, np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
+            )
+
+            # TODO: Save checkpoints of the experiment results
 
         if self.test_run:
             print("Test run complete. Exiting.")
             sys.exit(0)
         else:
-            self.save_results()
+            self.save_results(self.experiment_results)
             print(f"Results saved to {self.save_dir}")
 
         self.plot_results()
@@ -266,6 +292,8 @@ def parse_args(argv):
     # TO-DO: Add support for other datasets
 
     # Experiment specific args
+    parser.add_argument("--experiment_type", type=str, default=None,
+                        help="Type of experiment to run, one of 'None|lambda|p'")
     parser.add_argument("--n_agents", type=int, default=100,
                         help="Number of agents (i.e. agents, or computing nodes) to use for the experiment")
     parser.add_argument("--n_rounds", type=int, default=1000,
@@ -278,12 +306,14 @@ def parse_args(argv):
                         help="Number of warm-up rounds to use for the algorithm")
     parser.add_argument("--learning_rate", type=float,
                         default=2, help="Learning rate for the agent")
-    parser.add_argument("--lam", type=float, default=0.0,
-                        help="Lambda value, controls the distribution of delays in the graph")
-    parser.add_argument("--p", type=float, default=1.0,
-                        help="p value, controls the probability of an edge existing in the graph")
+    # if experiment is lambda, collect the array of lambdas
+    parser.add_argument("--lambdas", type=float, nargs='+', default=None,
+                        help="Array of lambdas to use for the experiment")
+    # if experiment is p, collect the array of p values
+    parser.add_argument("--p_values", type=float, nargs='+', default=None,
+                        help="Array of p values to use for the experiment")
     parser.add_argument("--n_experiments", type=int, default=1,
-                        help="Number of experiments to run for the given parameters")
+                        help="Number of experiments to run for each value of lambda or p")
     parser.add_argument("--results_folder", type=str, default="./results",
                         help="Folder to save the results of the experiment")
     parser.add_argument("--baseline_loss", type=float,
