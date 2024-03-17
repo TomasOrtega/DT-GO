@@ -19,6 +19,8 @@ from log_reg_utils import loss, loss_grad, OPTIMAL_WEIGHTS  # For logistic regre
 from generate_random_digraph import generate_random_digraph
 from add_delays_to_graph import add_delays_to_graph
 
+RECORD_KEYS = ('p', 'lam', 'n_rounds', 'learning_rate', 'seed')
+
 
 class Experiment:
     def __init__(self, args):
@@ -44,6 +46,9 @@ class Experiment:
         self.save_dir = os.path.join(args.results_folder, self.runname)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
+        else:
+            # Raise an error if the folder already exists
+            raise FileExistsError(f"{self.save_dir} already exists. Exiting.")
         # TODO -- use a logger
         with open(os.path.join(self.save_dir, f"{self.runname}_args.yaml"), "w") as f:
             yaml.dump(vars(args), f)
@@ -98,8 +103,7 @@ class Experiment:
     def get_runname(self):
         from log_reg_utils import config_dict_to_str
         args = self.args
-        runname = config_dict_to_str(vars(args), record_keys=(
-            'p', 'lam', 'n_rounds', 'learning_rate', 'n_experiments'))
+        runname = config_dict_to_str(vars(args), record_keys=RECORD_KEYS)
         return runname
 
     def save_results(self, save_dir=None):
@@ -121,7 +125,7 @@ class Experiment:
         np.save(f"{iteration_folder}/to_mean.npy", to_mean)
         # Save the graph as a pickle file
         pickle.dump(G, open(f"{iteration_folder}/graph.pkl", "wb"))
-    
+
     def load_one_round_results(self, it, save_dir=None):
         if save_dir is None:
             save_dir = self.save_dir
@@ -207,7 +211,7 @@ class Experiment:
         # Display results for cost suboptimality
         plt.figure()
         cost, mean = self.experiment_results
-            
+
         plt.plot(
             np.arange(1, self.n_rounds + 1), cost - self.baseline_loss, label=f"f - f*"
         )
@@ -226,7 +230,7 @@ class Experiment:
 
     def run_experiment(self):
         print(f"Running experiment {self.runname}...")
-        
+
         cost_all = []
         to_mean_all = []
         for it in tqdm(range(self.n_experiments)):
@@ -238,7 +242,8 @@ class Experiment:
             to_mean_all.append(to_mean)
 
         # Average results over the experiments and store them
-        self.experiment_results = (np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
+        self.experiment_results = (
+            np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
 
         if self.test_run:
             print("Test run complete. Exiting.")
