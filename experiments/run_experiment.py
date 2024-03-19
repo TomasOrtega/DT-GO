@@ -7,7 +7,7 @@ import matplotlib
 import scienceplots
 
 RESULTS_FOLDER = "results"
-N_EXP = 1
+N_EXP = 1000
 
 # Plot settings
 plt.style.use(['ieee', 'high-vis'])  # try bright instead of high-vis maybe
@@ -126,8 +126,10 @@ for lam in lambdas:
         costs, to_means = get_results(args, N_EXP)
         dict_results[(lam, p)] = (costs, to_means)
 
-generate_plot(dict_results, "cost", baseline_cost, filename = "cost_suboptimality_mixed.pdf")
-generate_plot(dict_results, "consensus", baseline_to_means, filename = "consensus_suboptimality_mixed.pdf")
+generate_plot(dict_results, "cost", baseline_cost,
+              filename="cost_suboptimality_mixed.pdf")
+generate_plot(dict_results, "consensus", baseline_to_means,
+              filename="consensus_suboptimality_mixed.pdf")
 
 # Plot lambda plots
 lambdas = [0.1, 0.2, 0.3, 0.4]
@@ -142,8 +144,10 @@ for lam in lambdas:
     costs, to_means = get_results(args, N_EXP)
     dict_results[(lam, 1.0)] = (costs, to_means)
 
-generate_plot(dict_results, "cost", baseline_cost, filename = "cost_suboptimality_lambda.pdf")
-generate_plot(dict_results, "consensus", baseline_to_means, filename = "consensus_suboptimality_lambda.pdf")
+generate_plot(dict_results, "cost", baseline_cost,
+              filename="cost_suboptimality_lambda.pdf")
+generate_plot(dict_results, "consensus", baseline_to_means,
+              filename="consensus_suboptimality_lambda.pdf")
 
 # Plot p plots
 ps = [0.8, 0.6, 0.4, 0.2]
@@ -155,6 +159,7 @@ for p in ps:
     costs, to_means = get_results(args, N_EXP)
     dict_results[(0.0, p)] = (costs, to_means)
 
-generate_plot(dict_results, "cost", baseline_cost, filename = "cost_suboptimality_p.pdf")
-generate_plot(dict_results, "consensus", baseline_to_means, filename = "consensus_suboptimality_p.pdf")
-
+generate_plot(dict_results, "cost", baseline_cost,
+              filename="cost_suboptimality_p.pdf")
+generate_plot(dict_results, "consensus", baseline_to_means,
+              filename="consensus_suboptimality_p.pdf")
