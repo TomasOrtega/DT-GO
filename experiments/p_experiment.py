@@ -5,7 +5,7 @@ import networkx as nx  # Import NetworkX for graph operations
 import pickle  # Import pickle for saving experiment results
 
 # Import a custom function to generate random digraphs
-from generate_random_digraph import generate_random_digraph
+from graph_utils import generate_random_digraph
 
 
 # Define a function to run the experiment

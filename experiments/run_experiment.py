@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 from experiment_regression import Experiment, RECORD_KEYS
 from log_reg_utils import get_args_as_obj, config_dict_to_str
 import matplotlib
@@ -41,7 +42,7 @@ def get_results(args, n_exp=1):
     # Load the results and average for n_exp experiments
     costs = []
     to_means = []
-    for i in range(n_exp):
+    for i in tqdm(range(n_exp)):
         exp_folder = os.path.join(folder, "experiments", str(i))
         costs.append(np.load(os.path.join(exp_folder, "cost.npy")))
         to_means.append(np.load(os.path.join(exp_folder, "to_mean.npy")))
@@ -137,8 +138,6 @@ dict_results = {}
 
 # For every product of lambda and p, run the experiment or load the results if they exist
 for lam in lambdas:
-    if lam == 0.3:
-        continue
     args["lam"] = lam
     args["p"] = 1.0
     costs, to_means = get_results(args, N_EXP)

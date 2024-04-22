@@ -16,8 +16,7 @@ from log_reg_utils import loss, loss_grad, OPTIMAL_WEIGHTS  # For logistic regre
 
 
 # Custom function to generate random directed graphs
-from generate_random_digraph import generate_random_digraph
-from add_delays_to_graph import add_delays_to_graph
+from graph_utils import generate_random_digraph, add_delays_to_graph
 
 RECORD_KEYS = ('p', 'lam', 'n_rounds', 'learning_rate', 'seed')
 

@@ -5,8 +5,8 @@ import numpy as np  # NumPy for numerical operations
 import pickle  # For saving experiment results
 
 # Custom function to generate random directed graphs
-from generate_random_digraph import generate_random_digraph
-from add_delays_to_graph import add_delays_to_graph
+from graph_utils import generate_random_digraph, add_delays_to_graph
+
 
 
 def run_experiment(N, lam, n_rounds):
