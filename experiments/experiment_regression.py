@@ -16,9 +16,9 @@ from log_reg_utils import loss, loss_grad, OPTIMAL_WEIGHTS  # For logistic regre
 
 
 # Custom function to generate random directed graphs
-from graph_utils import generate_random_digraph, add_delays_to_graph
+from graph_utils import generate_random_digraph, add_delays_to_graph, graph_to_W, change_graph
 
-RECORD_KEYS = ('p', 'lam', 'n_rounds', 'learning_rate', 'seed')
+RECORD_KEYS = ('p', 'lam', 'n_rounds', 'learning_rate', 'seed', 'time_varying', 'time_varying_prob')
 
 
 class Experiment:
@@ -36,6 +36,8 @@ class Experiment:
         self.test_run = args.test_run
         self.n_gossip = args.n_gossip
         self.warm_up_rounds = args.warm_up_rounds
+        self.time_varying = args.time_varying
+        self.time_varying_prob = args.time_varying_prob
 
         # Set the current time for asynchronous training
         np.random.seed(args.seed)
@@ -142,30 +144,28 @@ class Experiment:
         G = generate_random_digraph(self.n_agents, self.p)
         # Add delays
         G, virtual_nodes = add_delays_to_graph(G, self.lam, self.n_agents)
+        adjustment = None
+        W = graph_to_W(G, self.n_agents)
+        Winf = None
 
-        # Get the adjacency matrix
-        adj = nx.adjacency_matrix(G).todense()
-        adj = np.array(adj)
+        if not self.time_varying:
+            Winf = np.linalg.matrix_power(self.W, self.warm_up_rounds)
+        else:
+            Winf = W.copy()
+            for t in range(self.warm_up_rounds):
+                change_graph(G, self.time_varying_prob)
+                
+                # update the weight matrix
+                W = graph_to_W(G)
 
-        # Assert all self-loops exist for non-virtual nodes
-        assert np.all(np.diag(adj[0:self.n_agents]) == 1)
+                # update the Winf matrix
+                Winf = np.matmul(W, Winf)
 
-        # Assert weight matrix is column-stochastic (we transpose later)
-        column_sum = np.sum(adj, axis=0)
-        A = adj / column_sum
-        assert np.all(np.abs(np.sum(A, axis=0) - 1) < 1e-6)
-
-        # Add delays and get virtual_nodes
-        # A, virtual_nodes = add_delays_to_graph_v2(A, lam, self.n_agents)
-        # assert np all(np.abs(np.sum(A, axis=0) - 1) < 1e-6)
-
-        # Obtain adjustment vector of the graph
-        Ainf = np.linalg.matrix_power(A, self.warm_up_rounds)
-        adjustment = (Ainf)[:, 0]
-        assert np.all(np.abs(A.dot(adjustment) - adjustment) < 1e-6)
-
-        # Use the transpose and change notation for optimization (W * X)
-        W = A.T
+        # Compute the adjustment vector after the warm-up rounds    
+        adjustment = Winf[0, :]
+        
+        # delete Winf
+        del Winf
 
         # Initialize variables for optimization and tracking
         # X is a matrix with rows all equal to the initial model
@@ -201,7 +201,11 @@ class Experiment:
                 X[i] -= learning_step * deriv / (adjustment[i] * self.n_agents)
 
             # Perform Gossiping for n_gossip iterations
-            X = np.dot(np.linalg.matrix_power(W, self.n_gossip), X)
+            for _ in range(self.n_gossip):
+                X = np.matmul(W, X)
+                if self.time_varying:
+                    change_graph(G, self.time_varying_prob)
+                    W = graph_to_W(G)
 
         # Return the results of the experiment
         return global_cost, to_mean, G
@@ -294,6 +298,10 @@ def parse_args(argv):
                         default=0.014484174216922262, help="Baseline loss for the experiment")
     parser.add_argument("--test_run", default=False, action='store_true',
                         help="Whether to run a test run of the experiment")
+    parser.add_argument("--time_varying", default=False,
+                        action='store_true', help="Whether to use time-varying graphs")
+    parser.add_argument("--time_varying_prob", type=float, default=0.0,
+                        help="Probability of edges dropping in time-varying graphs")
 
     # Parse arguments.
     args = parser.parse_args(argv[1:])

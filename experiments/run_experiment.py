@@ -103,7 +103,9 @@ args = {
     "p": 1.0,
     "n_experiments": N_EXP,
     "l2_strength": None,
-    "n_gossip": 1
+    "n_gossip": 1,
+    "time_varying": False,
+    "time_varying_prob": 0,
 }
 
 args_baseline = args.copy()

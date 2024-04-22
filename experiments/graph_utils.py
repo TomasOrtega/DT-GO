@@ -88,20 +88,22 @@ def generate_random_digraph(n, p):
     return generate_random_digraph(n, p)
 
 
-def graph_to_W(n_agents, G):
+def graph_to_W(G, n_agents=None):
     """
     Converts a graph to a weight matrix for optimization.
-    
+
     Args:
-        n_agents (int): Number of agents in the graph.
-        G (nx.Graph): Graph object.
-    
+        G (networkx.Graph): Graph object.
+        n_agents (int): Number of non-virtual agents in the graph.
+
     Returns:
         numpy.ndarray: Weight matrix for optimization.
     """
     # Get the adjacency matrix
     adj = nx.adjacency_matrix(G).todense()
     adj = np.array(adj)
+
+    n_agents = n_agents if n_agents is not None else G.number_of_nodes()
 
     # Assert all self-loops exist for non-virtual nodes
     assert np.all(np.diag(adj[0:n_agents]) == 1)
@@ -113,3 +115,20 @@ def graph_to_W(n_agents, G):
     # Use the transpose and change notation for optimization (W * X)
     W = A.T
     return W
+
+def change_graph(G, q):
+    N = G.number_of_nodes()
+    random_matrix = np.random.rand(N, N) < q
+
+    # make sure that the diagonal is all zeros
+    np.fill_diagonal(random_matrix, False)
+
+    # iterate through all indices of True values in the random matrix
+    for i, j in zip(*np.where(random_matrix)):
+        # if edge exists, remove it
+        if G.has_edge(i, j):
+            G.remove_edge(i, j)
+        else:
+            G.add_edge(i, j)
+    
+    return G
