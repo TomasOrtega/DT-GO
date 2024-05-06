@@ -42,6 +42,7 @@ def get_results(args, n_exp=1):
     # Load the results and average for n_exp experiments
     costs = []
     to_means = []
+    print(f"Loading results for {runname}...")
     for i in tqdm(range(n_exp)):
         exp_folder = os.path.join(folder, "experiments", str(i))
         costs.append(np.load(os.path.join(exp_folder, "cost.npy")))
@@ -53,14 +54,14 @@ def get_results(args, n_exp=1):
     return costs, to_means
 
 
-def generate_plot(dict_results, cost_or_consensus, baseline, filename):
+def generate_plot(dict_results, cost_or_consensus, baseline, filename, time_varying=False):
     """
     Generate a plot of cost or consensus suboptimality over rounds.
 
     Args:
         dict_results (dict): A dictionary containing the results of the experiment.
             The keys are tuples of (lambda, p) values, and the values are tuples of
-            cost values and means values.
+            cost values and means values. If time_varying is true, the tuples are (q,p)
         cost_or_consensus (str): Specifies whether to plot cost suboptimality or consensus suboptimality.
             Must be either "cost" or "consensus".
         baseline (float): The baseline value to subtract from the cost or means values.
@@ -72,12 +73,20 @@ def generate_plot(dict_results, cost_or_consensus, baseline, filename):
     plt.figure()
 
     # For every product of lambda and p, plot the cost suboptimality
-    for (lam, p), (costs, to_means) in dict_results.items():
-        yvals = costs - baseline if cost_or_consensus == "cost" else to_means - baseline
-        n_rounds = len(yvals)
-        plt.plot(
-            np.arange(1, n_rounds + 1), yvals, label=f"$\lambda={lam:.1f}, p={p:.1f}$"
-        )
+    if time_varying:
+        for (q, p), (costs, to_means) in dict_results.items():
+            yvals = costs - baseline if cost_or_consensus == "cost" else to_means - baseline
+            n_rounds = len(yvals)
+            plt.plot(
+                np.arange(1, n_rounds + 1), yvals, label=f"$q={q:.2f}, p={p:.1f}$"
+            )
+    else:
+        for (lam, p), (costs, to_means) in dict_results.items():
+            yvals = costs - baseline if cost_or_consensus == "cost" else to_means - baseline
+            n_rounds = len(yvals)
+            plt.plot(
+                np.arange(1, n_rounds + 1), yvals, label=f"$\lambda={lam:.1f}, p={p:.1f}$"
+            )
 
     plt.xlabel("Round")
     ylabel = "Cost suboptimality" if cost_or_consensus == "cost" else "Consensus suboptimality"
@@ -164,3 +173,22 @@ generate_plot(dict_results, "cost", baseline_cost,
               filename="cost_suboptimality_p.pdf")
 generate_plot(dict_results, "consensus", baseline_to_means,
               filename="consensus_suboptimality_p.pdf")
+
+
+# Plot time-varying plots
+qs = [0.0, 0.01, 0.02, 0.03]
+p = 0.5
+args["p"] = p
+args["lam"] = 0.0
+args["time_varying"] = True
+dict_results = {}
+
+for q in qs:
+    args["time_varying_prob"] = q
+    costs, to_means = get_results(args, N_EXP)
+    dict_results[(q, p)] = (costs, to_means)
+
+generate_plot(dict_results, "cost", baseline_cost,
+              filename="cost_suboptimality_q.pdf", time_varying=True)
+generate_plot(dict_results, "consensus", baseline_to_means,
+              filename="consensus_suboptimality_q.pdf", time_varying=True)
