@@ -153,7 +153,7 @@ class Experiment:
         else:
             Winf = W.copy()
             for t in range(self.warm_up_rounds):
-                change_graph(G, self.time_varying_prob)
+                G = change_graph(G, self.time_varying_prob) # change_graph should work in-place, but just in case.
                 
                 # update the weight matrix
                 W = graph_to_W(G)
