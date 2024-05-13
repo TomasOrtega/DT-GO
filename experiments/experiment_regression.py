@@ -154,7 +154,7 @@ class Experiment:
         G0 = G.copy()
 
         if not self.time_varying:
-            Winf = np.linalg.matrix_power(self.W, self.warm_up_rounds)
+            Winf = np.linalg.matrix_power(W, self.warm_up_rounds)
         else:
             Winf = W.copy()
             for t in range(self.warm_up_rounds):

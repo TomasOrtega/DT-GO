@@ -8,7 +8,7 @@ import matplotlib
 import scienceplots
 
 RESULTS_FOLDER = "results"
-N_EXP = 1000
+N_EXP = 10000
 
 # Plot settings
 plt.style.use(['ieee', 'high-vis'])  # try bright instead of high-vis maybe
@@ -106,7 +106,7 @@ def generate_plot(dict_results, cost_or_consensus, baseline, filename, time_vary
 # Arguments for the experiment
 args = {
     "n_agents": 100,
-    "n_rounds": 1000,
+    "n_rounds": 250,
     "learning_rate": 2,
     "baseline_loss": 0.014484174216922262,
     "seed": 0,
@@ -132,79 +132,10 @@ args_baseline["n_experiments"] = 1
 # Get the baseline results
 baseline_cost, baseline_to_means = get_results(args_baseline, 1)
 
-# Plot mixed plots
-lambdas = [0.3]
-ps = [1.0, 0.8, 0.6, 0.4, 0.2]
-dict_results = {}
-
-# For every product of lambda and p, run the experiment or load the results if they exist
-for lam in lambdas:
-    for p in ps:
-        args["lam"] = lam
-        args["p"] = p
-        costs, to_means = get_results(args, N_EXP)
-        dict_results[(lam, p)] = (costs, to_means)
-
-generate_plot(dict_results, "cost", baseline_cost,
-              filename="cost_suboptimality_mixed.pdf")
-generate_plot(dict_results, "consensus", baseline_to_means,
-              filename="consensus_suboptimality_mixed.pdf")
-
-# Plot lambda plots
-lambdas = [0.1, 0.2, 0.3, 0.4]
-dict_results = {}
-
-# For every product of lambda and p, run the experiment or load the results if they exist
-for lam in lambdas:
-    args["lam"] = lam
-    args["p"] = 1.0
-    costs, to_means = get_results(args, N_EXP)
-    dict_results[(lam, 1.0)] = (costs, to_means)
-
-generate_plot(dict_results, "cost", baseline_cost,
-              filename="cost_suboptimality_lambda.pdf")
-generate_plot(dict_results, "consensus", baseline_to_means,
-              filename="consensus_suboptimality_lambda.pdf")
-
-# Plot p plots
-ps = [0.8, 0.6, 0.4, 0.2]
-dict_results = {}
-
-for p in ps:
-    args["lam"] = 0.0
-    args["p"] = p
-    costs, to_means = get_results(args, N_EXP)
-    dict_results[(0.0, p)] = (costs, to_means)
-
-generate_plot(dict_results, "cost", baseline_cost,
-              filename="cost_suboptimality_p.pdf")
-generate_plot(dict_results, "consensus", baseline_to_means,
-              filename="consensus_suboptimality_p.pdf")
-
-
-# Plot time-varying plots
-qs = [0.0, 0.01, 0.03]
-p = 0.2
-args["p"] = p
-args["lam"] = 0.0
-args["time_varying"] = True
-dict_results = {}
-
-for q in qs:
-    args["time_varying_prob"] = q
-    costs, to_means = get_results(args, 1)
-    dict_results[(q, p)] = (costs, to_means)
-
-generate_plot(dict_results, "cost", baseline_cost,
-              filename="cost_suboptimality_q.pdf", time_varying=True)
-generate_plot(dict_results, "consensus", baseline_to_means,
-              filename="consensus_suboptimality_q.pdf", time_varying=True)
-
-
 # Plot time-varying plots
 p_errs = [0.0, 0.1, 0.2]
 p = 0.5
-args["p"] = p
+args["p"] = 0.5
 args["lam"] = 0.0
 args["time_varying_prob"] = 0.0
 args["time_varying"] = True
