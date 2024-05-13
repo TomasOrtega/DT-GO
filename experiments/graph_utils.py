@@ -132,3 +132,28 @@ def change_graph(G, q):
             G.add_edge(i, j)
     
     return G
+
+def graph_with_errs(G, p_err):
+    """
+    Add errors to a graph's edges.
+
+    Args:
+        G (networkx.Graph): Graph object.
+        p_err (float): Probability of an error in an edge.
+
+    Returns:
+        networkx.Graph: Graph object with errors added.
+    """
+    N = G.number_of_nodes()
+    random_matrix = np.random.rand(N, N) < p_err
+
+    # make sure that the diagonal is all zeros
+    np.fill_diagonal(random_matrix, False)
+
+    # iterate through all indices of True values in the random matrix
+    for i, j in zip(*np.where(random_matrix)):
+        # if edge exists, remove it
+        if G.has_edge(i, j):
+            G.remove_edge(i, j)
+    
+    return G

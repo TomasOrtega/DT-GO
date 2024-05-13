@@ -16,9 +16,9 @@ from log_reg_utils import loss, loss_grad, OPTIMAL_WEIGHTS  # For logistic regre
 
 
 # Custom function to generate random directed graphs
-from graph_utils import generate_random_digraph, add_delays_to_graph, graph_to_W, change_graph
+from graph_utils import generate_random_digraph, add_delays_to_graph, graph_to_W, change_graph, graph_with_errs
 
-RECORD_KEYS = ('p', 'lam', 'n_rounds', 'learning_rate', 'seed', 'time_varying', 'time_varying_prob')
+RECORD_KEYS = ('p', 'lam', 'n_rounds', 'learning_rate', 'seed', 'time_varying', 'time_varying_prob', 'p_err')
 
 
 class Experiment:
@@ -38,6 +38,9 @@ class Experiment:
         self.warm_up_rounds = args.warm_up_rounds
         self.time_varying = args.time_varying
         self.time_varying_prob = args.time_varying_prob
+        self.p_err = args.p_err
+        if self.time_varying_prob > 0 or self.p_err > 0:
+            self.time_varying = True
 
         # Set the current time for asynchronous training
         np.random.seed(args.seed)
@@ -148,12 +151,17 @@ class Experiment:
         W = graph_to_W(G, self.n_agents)
         Winf = None
 
+        G0 = G.copy()
+
         if not self.time_varying:
             Winf = np.linalg.matrix_power(self.W, self.warm_up_rounds)
         else:
             Winf = W.copy()
             for t in range(self.warm_up_rounds):
-                G = change_graph(G, self.time_varying_prob) # change_graph should work in-place, but just in case.
+                if self.p_err > 0:
+                    G = graph_with_errs(G0.copy(), self.p_err)
+                else:
+                    G = change_graph(G, self.time_varying_prob) # change_graph should work in-place, but just in case.
                 
                 # update the weight matrix
                 W = graph_to_W(G)
@@ -204,7 +212,10 @@ class Experiment:
             for _ in range(self.n_gossip):
                 X = np.matmul(W, X)
                 if self.time_varying:
-                    change_graph(G, self.time_varying_prob)
+                    if self.p_err > 0:
+                        G = graph_with_errs(G0.copy(), self.p_err)
+                    else:
+                        G = change_graph(G, self.time_varying_prob)
                     W = graph_to_W(G)
 
         # Return the results of the experiment
@@ -301,6 +312,8 @@ def parse_args(argv):
     parser.add_argument("--time_varying", default=False,
                         action='store_true', help="Whether to use time-varying graphs")
     parser.add_argument("--time_varying_prob", type=float, default=0.0,
+                        help="Probability of edges dropping or forming in time-varying graphs")
+    parser.add_argument("--p_err", type=float, default=0.0,
                         help="Probability of edges dropping in time-varying graphs")
 
     # Parse arguments.

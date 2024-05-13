@@ -54,7 +54,7 @@ def get_results(args, n_exp=1):
     return costs, to_means
 
 
-def generate_plot(dict_results, cost_or_consensus, baseline, filename, time_varying=False):
+def generate_plot(dict_results, cost_or_consensus, baseline, filename, time_varying=False, p_err=False):
     """
     Generate a plot of cost or consensus suboptimality over rounds.
 
@@ -77,9 +77,15 @@ def generate_plot(dict_results, cost_or_consensus, baseline, filename, time_vary
         for (q, p), (costs, to_means) in dict_results.items():
             yvals = costs - baseline if cost_or_consensus == "cost" else to_means - baseline
             n_rounds = len(yvals)
-            plt.plot(
-                np.arange(1, n_rounds + 1), yvals, label=f"$q={q:.2f}, p={p:.1f}$"
-            )
+            if p_err:
+                p_err_string = 'p_{err}'
+                plt.plot(
+                    np.arange(1, n_rounds + 1), yvals, label=f"${p_err_string}={q:.1f}, p={p:.1f}$"
+                )
+            else:
+                plt.plot(
+                    np.arange(1, n_rounds + 1), yvals, label=f"$q={q:.2f}, p={p:.1f}$"
+                )
     else:
         for (lam, p), (costs, to_means) in dict_results.items():
             yvals = costs - baseline if cost_or_consensus == "cost" else to_means - baseline
@@ -115,6 +121,7 @@ args = {
     "n_gossip": 1,
     "time_varying": False,
     "time_varying_prob": 0,
+    "p_err": 0.0,
 }
 
 args_baseline = args.copy()
@@ -176,8 +183,8 @@ generate_plot(dict_results, "consensus", baseline_to_means,
 
 
 # Plot time-varying plots
-qs = [0.0, 0.01, 0.02, 0.03]
-p = 0.5
+qs = [0.0, 0.01, 0.03]
+p = 0.2
 args["p"] = p
 args["lam"] = 0.0
 args["time_varying"] = True
@@ -185,10 +192,29 @@ dict_results = {}
 
 for q in qs:
     args["time_varying_prob"] = q
-    costs, to_means = get_results(args, N_EXP)
+    costs, to_means = get_results(args, 1)
     dict_results[(q, p)] = (costs, to_means)
 
 generate_plot(dict_results, "cost", baseline_cost,
               filename="cost_suboptimality_q.pdf", time_varying=True)
 generate_plot(dict_results, "consensus", baseline_to_means,
               filename="consensus_suboptimality_q.pdf", time_varying=True)
+
+
+# Plot time-varying plots
+p_errs = [0.0, 0.1, 0.2]
+args["p"] = 0.5
+args["lam"] = 0.0
+args["time_varying_prob"] = 0.0
+args["time_varying"] = True
+dict_results = {}
+
+for p_err in p_errs:
+    args["p_err"] = p_err
+    costs, to_means = get_results(args, N_EXP)
+    dict_results[(p_err, p)] = (costs, to_means)
+
+generate_plot(dict_results, "cost", baseline_cost,
+              filename="cost_suboptimality_p_err.pdf", time_varying=True, p_err=True)
+generate_plot(dict_results, "consensus", baseline_to_means,
+              filename="consensus_suboptimality_p_err.pdf", time_varying=True, p_err=True)
