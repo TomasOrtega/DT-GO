@@ -228,6 +228,8 @@ class Experiment:
         return global_cost, to_mean, G
 
     def plot_results(self):
+        if not self.args.verbose:
+            return
         # Display results for cost suboptimality
         plt.figure()
         cost, mean = self.experiment_results
@@ -245,8 +247,7 @@ class Experiment:
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         plt.savefig(f"{self.save_dir}/{self.runname}_cost_suboptimality.pdf")
-        if self.args.verbose:
-            plt.show()
+        plt.show()
 
     def run_experiment(self):
         print(f"Running experiment {self.runname}...")
