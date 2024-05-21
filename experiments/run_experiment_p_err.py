@@ -8,7 +8,7 @@ import matplotlib
 import scienceplots
 
 RESULTS_FOLDER = "results"
-N_EXP = 10000
+N_EXP = 40000
 
 # Plot settings
 plt.style.use(['ieee', 'high-vis'])  # try bright instead of high-vis maybe

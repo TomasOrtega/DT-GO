@@ -108,6 +108,20 @@ def graph_to_W(G, n_agents=None):
     # Assert all self-loops exist for non-virtual nodes
     assert np.all(np.diag(adj[0:n_agents]) == 1)
 
+    return adj_to_W(adj)
+
+def adj_to_W(adj):
+    """
+    Converts an adjacency matrix to a weight matrix for optimization.
+
+    Args:
+        adj (numpy.ndarray): Adjacency matrix.
+
+    Returns:
+        numpy.ndarray: Weight matrix for optimization.
+    """
+    adj = np.array(adj)
+
     # Make weight matrix is column-stochastic (we transpose later)
     column_sum = np.sum(adj, axis=0)
     A = adj / column_sum
@@ -157,3 +171,23 @@ def graph_with_errs(G, p_err):
             G.remove_edge(i, j)
     
     return G
+
+def update_adj_with_errs(adj, p_err):
+    """
+    Add errors to an adjacency matrix.
+
+    Args:
+        adj (numpy.ndarray): Adjacency matrix.
+        p_err (float): Probability of an error in an edge.
+
+    Returns:
+        numpy.ndarray: Updated adjacency matrix with errors added.
+    """
+    N = adj.shape[0]
+    random_matrix = np.random.rand(N, N) < p_err
+
+    # vectorized operation to remove self-loops
+    np.fill_diagonal(random_matrix, False)
+
+    # vectorized operation to remove edges with errors
+    return adj * np.logical_not(random_matrix)

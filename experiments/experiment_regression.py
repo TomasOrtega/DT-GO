@@ -16,7 +16,7 @@ from log_reg_utils import loss, loss_grad, OPTIMAL_WEIGHTS  # For logistic regre
 
 
 # Custom function to generate random directed graphs
-from graph_utils import generate_random_digraph, add_delays_to_graph, graph_to_W, change_graph, graph_with_errs
+from graph_utils import generate_random_digraph, add_delays_to_graph, graph_to_W, change_graph, graph_with_errs, update_adj_with_errs, adj_to_W
 
 RECORD_KEYS = ('p', 'lam', 'n_rounds', 'learning_rate', 'seed', 'time_varying', 'time_varying_prob', 'p_err')
 
@@ -151,7 +151,8 @@ class Experiment:
         W = graph_to_W(G, self.n_agents)
         Winf = None
 
-        G0 = G.copy()
+        # G0 = G.copy()
+        A = nx.adjacency_matrix(G).todense()
 
         if not self.time_varying:
             Winf = np.linalg.matrix_power(W, self.warm_up_rounds)
@@ -159,12 +160,15 @@ class Experiment:
             Winf = W.copy()
             for t in range(self.warm_up_rounds):
                 if self.p_err > 0:
-                    G = graph_with_errs(G0.copy(), self.p_err)
+                    # G = graph_with_errs(G0.copy(), self.p_err)
+                    W = adj_to_W(update_adj_with_errs(A.copy(), self.p_err))
                 else:
                     G = change_graph(G, self.time_varying_prob) # change_graph should work in-place, but just in case.
+                    # update the weight matrix
+                    W = graph_to_W(G)
                 
                 # update the weight matrix
-                W = graph_to_W(G)
+                # W = graph_to_W(G)
 
                 # update the Winf matrix
                 Winf = np.matmul(W, Winf)
@@ -213,10 +217,12 @@ class Experiment:
                 X = np.matmul(W, X)
                 if self.time_varying:
                     if self.p_err > 0:
-                        G = graph_with_errs(G0.copy(), self.p_err)
+                        # G = graph_with_errs(G0.copy(), self.p_err)
+                        W = adj_to_W(update_adj_with_errs(A.copy(), self.p_err))
                     else:
                         G = change_graph(G, self.time_varying_prob)
-                    W = graph_to_W(G)
+                        W = graph_to_W(G)
+                    # W = graph_to_W(G)
 
         # Return the results of the experiment
         return global_cost, to_mean, G
