@@ -18,7 +18,11 @@ Arbitrary Delays](https://arxiv.org/abs/2401.11344), navigate to the `experiment
 * The code in `lambda_experiment.py` may take about 30 minutes to run in any modern laptop.
 
 The code will produce the results for the paper figures for both experiments as-is.
-To produce the figures, navigate to the `experiments` folder and run `python p_experiment.py` and `python lambda_experiment.py` respectively.
+To produce the figures, navigate to the `experiments` folder and run `python plot_p_experiment.py` and `python plot_lambda_experiment.py` respectively.
+
+To reproduce the experiments in [Decentralized Optimization in Time-Varying Networks with Arbitrary Delays](https://arxiv.org/abs/2405.19513), navigate to the `experiments` folder and run `python experiment_regression.py` with the desired configurations.
+
+To produce the figures, navigate to the `experiments` folder and run `python plot_experiment_p_err.py`, for example.
 
 # References
 
