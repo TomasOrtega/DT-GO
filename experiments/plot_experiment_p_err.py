@@ -36,8 +36,7 @@ def get_results(args, n_exp=1):
 
     # Run the experiment if the folder does not exist
     if not os.path.exists(folder):
-        experiment = Experiment(args)
-        experiment.run_experiment()
+        raise ValueError(f"Results for {runname} do not exist.")
 
     # Load the results and average for n_exp experiments
     costs = []
