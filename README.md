@@ -22,6 +22,10 @@ To produce the figures, navigate to the `experiments` folder and run `python plo
 
 To reproduce the experiments in [Decentralized Optimization in Time-Varying Networks with Arbitrary Delays](https://arxiv.org/abs/2405.19513), navigate to the `experiments` folder and run `python experiment_regression.py` with the desired configurations.
 
+Alternatively, run `sh runall.sh` to run all the experiments in parallel.
+This may take several days to complete depending on your hardware.
+It takes about 2 days to run all experiments in a AMD Ryzen Threadripper PRO 5955WX 16-Cores machine with 128 GB of RAM. 
+
 To produce the figures, navigate to the `experiments` folder and run `python plot_experiment_p_err.py`, for example.
 
 # References

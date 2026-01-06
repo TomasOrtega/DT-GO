@@ -21,7 +21,8 @@ for p in 1.0 0.8 0.6 0.4 0.2; do
 done
 
 # Loop: Varying Lambda (Fixed P 1.0)
-for lam in 0.1 0.2 0.3 0.4; do 
+# Removed 0.3 because it is already covered in the "Varying P" loop above
+for lam in 0.1 0.2 0.4; do 
     python experiment_regression.py --lam "$lam" --p 1.0 --n_experiments 1000 > "logs/reg_p1.0_lam${lam}.log" 2>&1 & 
 done
 
