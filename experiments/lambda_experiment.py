@@ -8,7 +8,6 @@ import pickle  # For saving experiment results
 from graph_utils import generate_random_digraph, add_delays_to_graph
 
 
-
 def run_experiment(N, lam, n_rounds):
     # Obtain a fully connected digraph
     G = generate_random_digraph(N, 1)

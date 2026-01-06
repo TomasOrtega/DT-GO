@@ -110,6 +110,7 @@ def graph_to_W(G, n_agents=None):
 
     return adj_to_W(adj)
 
+
 def adj_to_W(adj):
     """
     Converts an adjacency matrix to a weight matrix for optimization.
@@ -130,6 +131,7 @@ def adj_to_W(adj):
     W = A.T
     return W
 
+
 def change_graph(G, q):
     N = G.number_of_nodes()
     random_matrix = np.random.rand(N, N) < q
@@ -144,8 +146,9 @@ def change_graph(G, q):
             G.remove_edge(i, j)
         else:
             G.add_edge(i, j)
-    
+
     return G
+
 
 def graph_with_errs(G, p_err):
     """
@@ -169,8 +172,9 @@ def graph_with_errs(G, p_err):
         # if edge exists, remove it
         if G.has_edge(i, j):
             G.remove_edge(i, j)
-    
+
     return G
+
 
 def update_adj_with_errs(adj, p_err):
     """
