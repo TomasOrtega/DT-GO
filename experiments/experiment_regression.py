@@ -16,9 +16,26 @@ from log_reg_utils import loss, loss_grad, OPTIMAL_WEIGHTS  # For logistic regre
 
 
 # Custom function to generate random directed graphs
-from graph_utils import generate_random_digraph, add_delays_to_graph, graph_to_W, change_graph, graph_with_errs, update_adj_with_errs, adj_to_W
+from graph_utils import (
+    generate_random_digraph,
+    add_delays_to_graph,
+    graph_to_W,
+    change_graph,
+    graph_with_errs,
+    update_adj_with_errs,
+    adj_to_W,
+)
 
-RECORD_KEYS = ('p', 'lam', 'n_rounds', 'learning_rate', 'seed', 'time_varying', 'time_varying_prob', 'p_err')
+RECORD_KEYS = (
+    "p",
+    "lam",
+    "n_rounds",
+    "learning_rate",
+    "seed",
+    "time_varying",
+    "time_varying_prob",
+    "p_err",
+)
 
 
 class Experiment:
@@ -45,20 +62,25 @@ class Experiment:
         # Set the current time for asynchronous training
         np.random.seed(args.seed)
 
-        ##################### BEGIN: Good old bookkeeping #########################
+        # Bookkeeping: create results folder, runname, save args
+        # Create the results folder if it doesn't exist
+        if not os.path.exists(args.results_folder):
+            os.makedirs(args.results_folder)
+
         self.runname = self.get_runname()
         self.save_dir = os.path.join(args.results_folder, self.runname)
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
         else:
-            # Raise an error if the folder already exists
-            raise FileExistsError(f"{self.save_dir} already exists. Exiting.")
+            # Exit gracefully if the experiment has already been run
+            print(f"Experiment {self.save_dir} already exists. Skipping.")
+            sys.exit(0)
+
         # TODO -- use a logger
         with open(os.path.join(self.save_dir, f"{self.runname}_args.yaml"), "w") as f:
             yaml.dump(vars(args), f)
         print(f"Created experiment {self.runname}")
         print(f"Will save to {self.save_dir}")
-        ##################### END: Good old bookkeeping #########################
 
         # Get dataset
         # Download the LIBSVM mushroom dataset from the URL
@@ -91,9 +113,10 @@ class Experiment:
         if self.baseline_loss is None:
             # Use a black-box optimizer to find the baseline loss
             self.baseline_loss = scipy.optimize.minimize(
-                loss, OPTIMAL_WEIGHTS,
+                loss,
+                OPTIMAL_WEIGHTS,
                 args=(data, target, self.l2_strength),
-                options={"disp": True}
+                options={"disp": True},
             ).fun
 
         # Split the dataset
@@ -106,6 +129,7 @@ class Experiment:
 
     def get_runname(self):
         from log_reg_utils import config_dict_to_str
+
         args = self.args
         runname = config_dict_to_str(vars(args), record_keys=RECORD_KEYS)
         return runname
@@ -163,19 +187,21 @@ class Experiment:
                     # G = graph_with_errs(G0.copy(), self.p_err)
                     W = adj_to_W(update_adj_with_errs(A.copy(), self.p_err))
                 else:
-                    G = change_graph(G, self.time_varying_prob) # change_graph should work in-place, but just in case.
+                    G = change_graph(
+                        G, self.time_varying_prob
+                    )  # change_graph should work in-place, but just in case.
                     # update the weight matrix
                     W = graph_to_W(G)
-                
+
                 # update the weight matrix
                 # W = graph_to_W(G)
 
                 # update the Winf matrix
                 Winf = np.matmul(W, Winf)
 
-        # Compute the adjustment vector after the warm-up rounds    
+        # Compute the adjustment vector after the warm-up rounds
         adjustment = Winf[0, :]
-        
+
         # delete Winf
         del Winf
 
@@ -192,12 +218,13 @@ class Experiment:
             # Compute global cost and consensus
             cost_mean = 0
             for i in range(self.n_agents):
-                cost_mean += loss(X[i], self.data_agents[i],
-                                  self.labels_agents[i], self.l2_strength)
+                cost_mean += loss(
+                    X[i], self.data_agents[i], self.labels_agents[i], self.l2_strength
+                )
             global_cost[k] = cost_mean / self.n_agents
 
             to_mean_cost = 0
-            mean_models = np.mean(X[0:self.n_agents, :], axis=0)
+            mean_models = np.mean(X[0 : self.n_agents, :], axis=0)
             for i in range(self.n_agents):
                 to_mean_cost += np.sum((mean_models - X[i]) ** 2)
             to_mean[k] = to_mean_cost / self.n_agents
@@ -205,8 +232,9 @@ class Experiment:
             # Optimize at every agent
             for i in range(self.n_agents):
                 # Compute derivative for optimization
-                deriv = loss_grad(X[i], self.data_agents[i],
-                                  self.labels_agents[i], self.l2_strength)
+                deriv = loss_grad(
+                    X[i], self.data_agents[i], self.labels_agents[i], self.l2_strength
+                )
 
                 # Update X using the learning step and adjustment vector
                 # X[i] -= learning_step * np.sqrt(self.n_agents / (k + 1)) * deriv / (adjustment[i] * self.n_agents)
@@ -264,7 +292,9 @@ class Experiment:
 
         # Average results over the experiments and store them
         self.experiment_results = (
-            np.mean(cost_all, axis=0), np.mean(to_mean_all, axis=0))
+            np.mean(cost_all, axis=0),
+            np.mean(to_mean_all, axis=0),
+        )
 
         if self.test_run:
             print("Test run complete. Exiting.")
@@ -281,47 +311,106 @@ class Experiment:
 def parse_args(argv):
     """Parses command line arguments."""
     parser = argparse_flags.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
     # High-level options.
-    parser.add_argument("--verbose", "-V", action="store_true",
-                        help="Plot progress and metrics after training.")
+    parser.add_argument(
+        "--verbose",
+        "-V",
+        action="store_true",
+        help="Plot progress and metrics after training.",
+    )
     parser.add_argument("--seed", type=int, default=0)
 
     # Specifying dataset
     # TO-DO: Add support for other datasets
 
     # Experiment specific args
-    parser.add_argument("--n_agents", type=int, default=100,
-                        help="Number of agents (i.e. agents, or computing nodes) to use for the experiment")
-    parser.add_argument("--n_rounds", type=int, default=1000,
-                        help="Number of algorithm rounds to use for the experiment")
-    parser.add_argument("--l2_strength", type=float, default=None,
-                        help="L2 regularization strength to use for the experiment, defaults to None, set to 1/n, where n is the number of samples")
-    parser.add_argument("--n_gossip", type=int, default=1,
-                        help="Number of gossip iterations per round")
-    parser.add_argument("--warm_up_rounds", type=int, default=1024,
-                        help="Number of warm-up rounds to use for the algorithm")
-    parser.add_argument("--learning_rate", type=float,
-                        default=2, help="Learning rate for the agent")
-    parser.add_argument("--lam", type=float, default=0.0,
-                        help="Lambda value, controls the distribution of delays in the graph")
-    parser.add_argument("--p", type=float, default=1.0,
-                        help="p value, controls the probability of an edge existing in the graph")
-    parser.add_argument("--n_experiments", type=int, default=1,
-                        help="Number of experiments to run for the given parameters")
-    parser.add_argument("--results_folder", type=str, default="./results",
-                        help="Folder to save the results of the experiment")
-    parser.add_argument("--baseline_loss", type=float,
-                        default=0.014484174216922262, help="Baseline loss for the experiment")
-    parser.add_argument("--test_run", default=False, action='store_true',
-                        help="Whether to run a test run of the experiment")
-    parser.add_argument("--time_varying", default=False,
-                        action='store_true', help="Whether to use time-varying graphs")
-    parser.add_argument("--time_varying_prob", type=float, default=0.0,
-                        help="Probability of edges dropping or forming in time-varying graphs")
-    parser.add_argument("--p_err", type=float, default=0.0,
-                        help="Probability of edges dropping in time-varying graphs")
+    parser.add_argument(
+        "--n_agents",
+        type=int,
+        default=100,
+        help="Number of agents (i.e. agents, or computing nodes) to use for the experiment",
+    )
+    parser.add_argument(
+        "--n_rounds",
+        type=int,
+        default=1000,
+        help="Number of algorithm rounds to use for the experiment",
+    )
+    parser.add_argument(
+        "--l2_strength",
+        type=float,
+        default=None,
+        help="L2 regularization strength to use for the experiment, defaults to None, set to 1/n, where n is the number of samples",
+    )
+    parser.add_argument(
+        "--n_gossip", type=int, default=1, help="Number of gossip iterations per round"
+    )
+    parser.add_argument(
+        "--warm_up_rounds",
+        type=int,
+        default=1024,
+        help="Number of warm-up rounds to use for the algorithm",
+    )
+    parser.add_argument(
+        "--learning_rate", type=float, default=2, help="Learning rate for the agent"
+    )
+    parser.add_argument(
+        "--lam",
+        type=float,
+        default=0.0,
+        help="Lambda value, controls the distribution of delays in the graph",
+    )
+    parser.add_argument(
+        "--p",
+        type=float,
+        default=1.0,
+        help="p value, controls the probability of an edge existing in the graph",
+    )
+    parser.add_argument(
+        "--n_experiments",
+        type=int,
+        default=1,
+        help="Number of experiments to run for the given parameters",
+    )
+    parser.add_argument(
+        "--results_folder",
+        type=str,
+        default="./results",
+        help="Folder to save the results of the experiment",
+    )
+    parser.add_argument(
+        "--baseline_loss",
+        type=float,
+        default=0.014484174216922262,
+        help="Baseline loss for the experiment",
+    )
+    parser.add_argument(
+        "--test_run",
+        default=False,
+        action="store_true",
+        help="Whether to run a test run of the experiment",
+    )
+    parser.add_argument(
+        "--time_varying",
+        default=False,
+        action="store_true",
+        help="Whether to use time-varying graphs",
+    )
+    parser.add_argument(
+        "--time_varying_prob",
+        type=float,
+        default=0.0,
+        help="Probability of edges dropping or forming in time-varying graphs",
+    )
+    parser.add_argument(
+        "--p_err",
+        type=float,
+        default=0.0,
+        help="Probability of edges dropping in time-varying graphs",
+    )
 
     # Parse arguments.
     args = parser.parse_args(argv[1:])
