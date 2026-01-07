@@ -4,65 +4,72 @@ import os
 import scienceplots
 import matplotlib
 
-# Setup styles
+# ==========================================
+# CONFIGURATION
+# ==========================================
+RESULTS_DIR = "results/pipelined_drifting"
+OUT_FILE = "figures/pipelined_comparison.pdf"
+BASELINE_LOSS = 0.014484174216922262  # f* for Mushrooms dataset
+
+# Apply the same style as other experiment plots
 plt.style.use(["ieee", "high-vis"])
 matplotlib.rcParams["text.usetex"] = True
 
 
 def main():
-    results_dir = "results/pipelined_drifting"
-
-    if not os.path.exists(results_dir):
-        print(f"Directory {results_dir} not found. Run the experiment first.")
+    if not os.path.exists(RESULTS_DIR):
+        print(f"Directory {RESULTS_DIR} not found. Run the experiment first.")
         return
 
     try:
-        cost_std = np.load(os.path.join(results_dir, "cost_standard.npy"))
-        cost_pipe = np.load(os.path.join(results_dir, "cost_pipelined.npy"))
+        cost_std = np.load(os.path.join(RESULTS_DIR, "cost_standard.npy"))
+        cost_pipelined = np.load(os.path.join(RESULTS_DIR, "cost_pipelined.npy"))
     except FileNotFoundError:
-        print("Data files not found.")
+        print("Data files not found in the results directory.")
         return
 
-    # Baseline optimal loss (from regression utils)
-    f_star = 0.014484174216922262
+    # Calculate Suboptimality (f(x) - f*)
+    subopt_std = cost_std - BASELINE_LOSS
+    subopt_pipelined = cost_pipelined - BASELINE_LOSS
 
-    # Calculate Suboptimality
-    subopt_std = cost_std - f_star
-    subopt_pipe = cost_pipe - f_star
+    n_rounds = len(cost_std)
+    rounds = np.arange(1, n_rounds + 1)
 
-    rounds = np.arange(len(cost_std))
+    # ==========================================
+    # PLOTTING
+    # ==========================================
+    plt.figure()
 
-    plt.figure(figsize=(6, 4))
+    # Plot Standard (Static) approach
+    plt.plot(rounds, subopt_std, label=r"Standard", linestyle="--", linewidth=0.8)
 
-    # Plot Standard
-    plt.plot(
-        rounds, subopt_std, label=r"Standard \textsc{DT-GO}", linestyle="--", alpha=0.9
-    )
-
-    # Plot Pipelined
+    # Plot Pipelined (Dynamic) approach
     plt.plot(
         rounds,
-        subopt_pipe,
-        label=r"Pipelined \textsc{DT-GO}",
+        subopt_pipelined,
+        label=r"Pipelined (Dynamic $D$)",
         linestyle="-",
-        linewidth=1.5,
+        linewidth=1.0,
     )
 
-    plt.xlabel("Round (Topology Drifting $A \to B$)")
-    plt.ylabel(r"$f(x) - f^\star$")
+    # Formatting matches plot_experiments.py
+    plt.xlabel("Round")
+    plt.ylabel("Cost suboptimality")
     plt.yscale("log")
-    plt.grid(True, which="both", ls="-", alpha=0.2)
+
+    # Optional: If you want to highlight the drift, you can add text or lines
+    # But usually, keeping it clean (ieee style) is better.
+
     plt.legend()
     plt.tight_layout()
 
-    # Save
+    # Save output
     if not os.path.exists("figures"):
         os.makedirs("figures")
 
-    out_file = "figures/pipelined_comparison.pdf"
-    plt.savefig(out_file)
-    print(f"Plot saved to {out_file}")
-    plt.show()
+    plt.savefig(OUT_FILE)
+    print(f"Plot saved to {OUT_FILE}")
+    # plt.show() # Uncomment if running locally with a display
 
 
 if __name__ == "__main__":
