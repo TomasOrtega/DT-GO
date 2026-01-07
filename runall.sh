@@ -38,7 +38,7 @@ done
 
 # Loop: Packet Error Probability (p_err)
 for perr in 0.0 0.1 0.2; do 
-    python experiment_regression.py --p 0.5 --time_varying --p_err "$perr" --n_experiments 1000 > "logs/reg_perr${perr}.log" 2>&1 & 
+    python experiment_regression.py --p 0.5 --time_varying --p_err "$perr" --n_experiments 40000 > "logs/reg_perr${perr}.log" 2>&1 & 
 done
 
 # 3. Wait for completion
