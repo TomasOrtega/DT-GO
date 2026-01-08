@@ -67,7 +67,7 @@ def plot_metric(y_std, y_pipe, filename, ylabel, title=None, baseline_subopt=Fal
         plt.title(title)
 
     plt.legend()
-    # plt.tight_layout()
+    plt.tight_layout()
 
     plt.savefig(filename)
     print(f"Plot saved to {filename}")
@@ -96,7 +96,7 @@ def main():
     def cleanup(arr):
         arr = np.where(np.isinf(arr), np.nan, arr)
         arr = np.where(arr < 0, np.nan, arr)
-        arr = np.clip(arr, 1e-15, 1e2)
+        arr = np.clip(arr, 1e-15, 1e15)
         return arr
 
     cost_std = cleanup(cost_std)

@@ -94,14 +94,27 @@ class PipelinedExperiment:
         for k in range(self.n_rounds):
 
             # ==========================
-            # 0. EVOLVING TOPOLOGY
+            # 0. EVOLVING TOPOLOGY (SAFE)
             # ==========================
             flip_mask = np.random.rand(self.n_agents, self.n_agents) < p_perturb
             np.fill_diagonal(flip_mask, 0)
 
             if np.any(flip_mask):
-                Adj = np.abs(Adj - flip_mask)
-                W_curr = adj_to_W(Adj)
+                # 1. Create a candidate Adjacency matrix
+                # (0->1 becomes 1, 1->1 becomes 0)
+                Adj_candidate = np.abs(Adj - flip_mask)
+
+                # 2. Check if this candidate is strongly connected
+                # We need to construct a temp graph to use NetworkX's check
+                G_cand = nx.from_numpy_array(Adj_candidate, create_using=nx.DiGraph)
+
+                if nx.is_strongly_connected(G_cand):
+                    # Safe to update
+                    Adj = Adj_candidate
+                    W_curr = adj_to_W(Adj)
+                # else:
+                #   The flip would disconnect the graph.
+                #   Ignore this perturbation and keep the old topology.
 
             # ==========================
             # 1. STANDARD ALGORITHM
@@ -152,6 +165,21 @@ class PipelinedExperiment:
         )
 
     def run(self):
+        # Define expected output files
+        expected_files = [
+            "cost_standard.npy",
+            "cost_pipelined.npy",
+            "consensus_standard.npy",
+            "consensus_pipelined.npy",
+        ]
+
+        # Check if all files already exist
+        if all(os.path.exists(os.path.join(self.save_dir, f)) for f in expected_files):
+            print(
+                f"Results for seed {self.seed} already exist in {self.save_dir}. Skipping."
+            )
+            return
+
         print(f"Running Pipelined Experiment (Seed: {self.seed})...")
         c_std, c_pipe, cn_std, cn_pipe = self.run_single_experiment()
 

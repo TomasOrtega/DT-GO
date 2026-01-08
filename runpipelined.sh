@@ -8,7 +8,7 @@ echo "Running Pipelined DT-GO (Evolving Topology)"
 echo "=================================================="
 
 # Define number of parallel experiments
-NUM_EXPERIMENTS=10
+NUM_EXPERIMENTS=100
 START_SEED=1
 
 # Calculate the end seed based on number of experiments
