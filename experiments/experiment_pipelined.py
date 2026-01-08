@@ -7,34 +7,8 @@ from sklearn.datasets import load_svmlight_file
 import urllib.request
 from log_reg_utils import loss, loss_grad
 
-# Reuse graph utils
+# Reuse graph utils from the provided context
 from graph_utils import generate_random_digraph, adj_to_W
-
-
-def get_drifting_topology(Adj_A, Adj_B, alpha, n_agents):
-    """
-    Generates a weight matrix W based on a linear interpolation
-    of edge probabilities between Graph A and Graph B.
-    """
-    # Interpolate probability of edge existence
-    Prob_Matrix = (1 - alpha) * Adj_A + alpha * Adj_B
-
-    # Sample actual edges for this round based on probabilities
-    # We use random float comparison against the probability matrix
-    random_draw = np.random.rand(n_agents, n_agents)
-    Current_Adj = (random_draw < Prob_Matrix).astype(float)
-
-    # Ensure self-loops always exist
-    np.fill_diagonal(Current_Adj, 1.0)
-
-    # Convert to row-stochastic weight matrix
-    # Handle isolated nodes (row sum 0) by making them self-loops if necessary
-    row_sums = Current_Adj.sum(axis=1)
-    Current_Adj[row_sums == 0, :] = 0
-    np.fill_diagonal(Current_Adj, 1.0)  # Re-ensure diagonal
-
-    return adj_to_W(Current_Adj)
-
 
 class PipelinedExperiment:
     def __init__(self, args):
@@ -43,12 +17,12 @@ class PipelinedExperiment:
         self.n_rounds = args.n_rounds
         self.learning_rate = args.learning_rate
         self.n_experiments = args.n_experiments
-        self.save_dir = os.path.join(args.results_folder, "pipelined_drifting")
+        self.save_dir = os.path.join(args.results_folder, "pipelined_evolving")
 
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-        # Load Data (Mushrooms)
+        # Load Data
         if not os.path.exists("mushroom.libsvm"):
             url = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/mushrooms"
             urllib.request.urlretrieve(url, "mushroom.libsvm")
@@ -58,122 +32,157 @@ class PipelinedExperiment:
         target = target - 1
         n, d = data.shape
         self.l2_strength = 1.0 / n
-        data = np.hstack((np.ones((n, 1)), data))  # Bias term
+        data = np.hstack((np.ones((n, 1)), data)) 
 
         self.data_agents = np.array_split(data, self.n_agents)
         self.labels_agents = np.array_split(target, self.n_agents)
         self.d = d + 1
 
-        # Baseline optimal loss for plotting
-        # (Approximate optimal value for Mushrooms with this Reg)
-        self.baseline_loss = 0.014484174216922262
-
     def run_single_experiment(self):
-        """
-        Runs a single simulation of topology drift.
-        Returns (cost_std, cost_pipe, cons_std, cons_pipe) for this run.
-        """
-        # 1. Generate Start (A) and End (B) Graphs
-        # We use sparse graphs (p=0.05) so centrality drift is significant
-        G_A = generate_random_digraph(self.n_agents, p=0.05)
-        G_B = generate_random_digraph(self.n_agents, p=0.05)
+        # --- 1. INITIAL TOPOLOGY ---
+        # Start with a random graph (e.g., density p=0.05)
+        G = generate_random_digraph(self.n_agents, p=0.05)
+        Adj = nx.to_numpy_array(G)
+        np.fill_diagonal(Adj, 1.0) # Ensure self-loops
+        
+        # Calculate Initial Weight Matrix
+        W_curr = adj_to_W(Adj)
 
-        Adj_A = nx.to_numpy_array(G_A)
-        Adj_B = nx.to_numpy_array(G_B)
+        # --- PRE-CALCULATE STATIC D (Baseline) ---
+        # The Standard Algorithm calibrates ONLY on the initial graph (G_0).
+        # It assumes the topology never changes.
+        W_inf_init = np.linalg.matrix_power(W_curr, 100)
+        pi_init = W_inf_init[0, :]
+        D_static = 1.0 / (self.n_agents * pi_init + 1e-10)
 
-        # Ensure self-loops
-        np.fill_diagonal(Adj_A, 1.0)
-        np.fill_diagonal(Adj_B, 1.0)
-
-        # --- SETUP STANDARD DT-GO (Static Warm-up) ---
-        # Standard DT-GO warms up on Graph A and fixes D matrix
-        W_A = adj_to_W(Adj_A)
-        W_inf_A = np.linalg.matrix_power(W_A, 1000)  # Simulate warm-up
-        pi_static = W_inf_A[0, :]  # Extract stationary dist
-        D_static = 1.0 / (self.n_agents * pi_static)
-
+        # --- INITIALIZATION ---
         X_std = np.zeros((self.n_agents, self.d))
-
-        # --- SETUP PIPELINED DT-GO ---
-        # Pipelined runs an Estimation Stream (Matrix V) alongside optimization
-        V_pipe = np.eye(self.n_agents)  # Initial dictionaries {id_n: 1}
         X_pipe = np.zeros((self.n_agents, self.d))
 
+        # --- PIPELINED ESTIMATION VARIABLES ---
+        # Shadow variable to track the changing eigenvectors
+        V_shadow = np.eye(self.n_agents)
+        
+        # Current estimate of the stationary distribution
+        pi_active = np.ones(self.n_agents) / self.n_agents 
+        
+        # Handover / Fading Logic
+        T_est = 30          # Estimation window length
+        T_fade = 10         # Fading transition length
+        fade_counter = 0    
+        pi_old = pi_active.copy()
+        pi_target = pi_active.copy()
+        
         # Metrics
         cost_std_hist = []
         cost_pipe_hist = []
         cons_std_hist = []
         cons_pipe_hist = []
 
-        # Run rounds
+        # Perturbation Probability
+        # Probability that any given edge flips status (exists <-> not exists) per round.
+        # 1e-4 with 100 agents (~10,000 edges) means ~1 edge change(s) per round.
+        p_perturb = 1e-4
+
         for k in range(self.n_rounds):
-            # 1. Topology Drift
-            alpha = k / self.n_rounds
-            W_k = get_drifting_topology(Adj_A, Adj_B, alpha, self.n_agents)
+            
+            # ==========================
+            # 0. EVOLVING TOPOLOGY
+            # ==========================
+            # Generate a random mask of edges to flip
+            # We strictly avoid modifying the diagonal (self-loops)
+            flip_mask = (np.random.rand(self.n_agents, self.n_agents) < p_perturb)
+            np.fill_diagonal(flip_mask, 0)
 
-            # --- Update Standard Algorithm ---
-            self.update_step(X_std, W_k, D_static)
+            if np.any(flip_mask):
+                # Apply changes: 1 becomes 0, 0 becomes 1 (Absolute difference mimics XOR)
+                Adj = np.abs(Adj - flip_mask)
+                
+                # Re-generate the stochastic weight matrix based on the new topology
+                W_curr = adj_to_W(Adj)
 
-            # --- Update Pipelined Algorithm ---
-            # 1. Estimation Stream
-            V_pipe = np.matmul(W_k, V_pipe)
-            # 2. Extract Pi estimate
-            pi_est = np.diag(V_pipe)
-            # 3. Optimization Stream (Dynamic D)
-            D_dynamic = 1.0 / (self.n_agents * pi_est + 1e-12)
-            self.update_step(X_pipe, W_k, D_dynamic)
+            # ==========================
+            # 1. STANDARD ALGORITHM
+            # ==========================
+            # Mixing happens on the CURRENT graph (W_curr), but correction uses OLD weights (D_static)
+            self.update_step(X_std, W_curr, D_static)
+            
+            # ==========================
+            # 2. PIPELINED ALGORITHM
+            # ==========================
+            
+            # --- A) Shadow Estimation Update (Tracking the topology) ---
+            V_shadow = np.matmul(W_curr, V_shadow)
+            
+            # --- B) Check for Reset / Handover ---
+            if (k + 1) % T_est == 0:
+                # Harvest estimate from diagonal of shadow matrix
+                pi_new_estimate = np.diag(V_shadow)
+                
+                # Setup Fading
+                pi_old = pi_active.copy()
+                pi_target = pi_new_estimate.copy()
+                fade_counter = T_fade
+                
+                # Reset Shadow Estimator
+                V_shadow = np.eye(self.n_agents)
 
-            # --- Record Metrics ---
+            # --- C) Apply Fading ---
+            if fade_counter > 0:
+                alpha = 1.0 - (fade_counter / T_fade)
+                pi_active = (1 - alpha) * pi_old + alpha * pi_target
+                fade_counter -= 1
+            else:
+                pi_active = pi_target
+
+            # --- D) Optimization Step with Dynamic D ---
+            # Updates correction weights based on the active estimate of the topology
+            D_dynamic = 1.0 / (self.n_agents * pi_active + 1e-10)
+            self.update_step(X_pipe, W_curr, D_dynamic)
+
+            # ==========================
+            # RECORD METRICS
+            # ==========================
             cost_std_hist.append(self.compute_cost(X_std))
-            cost_pipe_hist.append(self.compute_cost(X_pipe))
             cons_std_hist.append(self.compute_consensus(X_std))
+            
+            cost_pipe_hist.append(self.compute_cost(X_pipe))
             cons_pipe_hist.append(self.compute_consensus(X_pipe))
 
         return (
-            np.array(cost_std_hist),
+            np.array(cost_std_hist), 
             np.array(cost_pipe_hist),
             np.array(cons_std_hist),
-            np.array(cons_pipe_hist),
+            np.array(cons_pipe_hist)
         )
 
     def run(self):
-        print(
-            f"Initializing Drifting Topology Experiment ({self.n_experiments} runs)..."
-        )
+        print(f"Running Evolving Topology Experiment ({self.n_experiments} runs)...")
 
-        all_cost_std = []
-        all_cost_pipe = []
-        all_cons_std = []
-        all_cons_pipe = []
+        all_cost_std, all_cost_pipe = [], []
+        all_cons_std, all_cons_pipe = [], []
 
-        # Loop over number of experiments
-        for i in tqdm(range(self.n_experiments), desc="Running Experiments"):
+        for i in tqdm(range(self.n_experiments)):
             c_std, c_pipe, cn_std, cn_pipe = self.run_single_experiment()
             all_cost_std.append(c_std)
             all_cost_pipe.append(c_pipe)
             all_cons_std.append(cn_std)
             all_cons_pipe.append(cn_pipe)
 
-        # Average results
+        # Average over runs
         avg_cost_std = np.mean(all_cost_std, axis=0)
         avg_cost_pipe = np.mean(all_cost_pipe, axis=0)
         avg_cons_std = np.mean(all_cons_std, axis=0)
         avg_cons_pipe = np.mean(all_cons_pipe, axis=0)
 
-        # Save results
-        print(f"Saving averaged results to {self.save_dir}...")
         np.save(os.path.join(self.save_dir, "cost_standard.npy"), avg_cost_std)
         np.save(os.path.join(self.save_dir, "cost_pipelined.npy"), avg_cost_pipe)
         np.save(os.path.join(self.save_dir, "consensus_standard.npy"), avg_cons_std)
         np.save(os.path.join(self.save_dir, "consensus_pipelined.npy"), avg_cons_pipe)
-        print("Experiment Complete.")
+        print("Done. Results saved to:", self.save_dir)
 
     def update_step(self, X, W, D):
-        """
-        Performs one round of DT-GO: Descent -> Correct -> Mix
-        X is modified in-place.
-        """
-        # 1. Local Descent
+        # Calculate Local Gradients
         Y = np.zeros_like(X)
         for i in range(self.n_agents):
             grad = loss_grad(
@@ -181,11 +190,11 @@ class PipelinedExperiment:
             )
             Y[i] = X[i] - self.learning_rate * grad
 
-        # 2. Correction Step
+        # Apply Correction (DT-GO Step)
         D_col = D.reshape(-1, 1)
         Z = X + D_col * (Y - X)
-
-        # 3. Mixing Step
+        
+        # Gossip (Mix on current topology)
         X[:] = np.matmul(W, Z)
 
     def compute_cost(self, X):
@@ -195,25 +204,19 @@ class PipelinedExperiment:
                 X[i], self.data_agents[i], self.labels_agents[i], self.l2_strength
             )
         return cost / self.n_agents
-
+    
     def compute_consensus(self, X):
-        """
-        Computes the mean squared deviation from the average model (Variance).
-        """
         bar_x = np.mean(X, axis=0)
         diff = X - bar_x
-        # 1/N * sum ||x_i - bar_x||^2
         return np.sum(diff**2) / self.n_agents
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_agents", type=int, default=100)
-    parser.add_argument("--n_rounds", type=int, default=1500)
-    parser.add_argument("--learning_rate", type=float, default=2.0)
-    parser.add_argument(
-        "--n_experiments", type=int, default=20, help="Number of runs to average"
-    )
+    parser.add_argument("--n_rounds", type=int, default=3000) 
+    parser.add_argument("--learning_rate", type=float, default=2)
+    parser.add_argument("--n_experiments", type=int, default=1)
     parser.add_argument("--results_folder", type=str, default="results")
     args = parser.parse_args()
 

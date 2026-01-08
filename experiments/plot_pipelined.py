@@ -4,35 +4,26 @@ import os
 import scienceplots
 import matplotlib
 
-# ==========================================
-# CONFIGURATION
-# ==========================================
-RESULTS_DIR = "results/pipelined_drifting"
+RESULTS_DIR = "results/pipelined_evolving" 
 COST_OUT_FILE = "figures/pipelined_cost.pdf"
 CONS_OUT_FILE = "figures/pipelined_consensus.pdf"
-BASELINE_LOSS = 0.014484174216922262  # f* for Mushrooms dataset
+BASELINE_LOSS = 0.014484174216922262
 
-# Apply style
 plt.style.use(["ieee", "high-vis"])
 matplotlib.rcParams["text.usetex"] = True
 
-
-def plot_metric(y_std, y_pipe, filename, ylabel, title=None):
+def plot_metric(y_std, y_pipe, filename, ylabel, title=None, baseline_subopt=False):
     plt.figure()
+    
+    if baseline_subopt:
+        y_std = np.maximum(y_std - BASELINE_LOSS, 1e-15)
+        y_pipe = np.maximum(y_pipe - BASELINE_LOSS, 1e-15)
 
     rounds = np.arange(1, len(y_std) + 1)
 
-    # Plot Standard
-    plt.plot(rounds, y_std, label=r"Standard", linestyle="--", linewidth=0.8)
-
-    # Plot Pipelined
-    plt.plot(
-        rounds,
-        y_pipe,
-        label=r"Pipelined (Dynamic $D$)",
-        linestyle="-",
-        linewidth=1.0,
-    )
+    plt.plot(rounds, y_std, label=r"Standard", linestyle="--", linewidth=1.0)
+    # Updated label to reflect EMA
+    plt.plot(rounds, y_pipe, label=r"Pipelined (EMA)", linestyle="-", linewidth=1.0)
 
     plt.xlabel("Round")
     plt.ylabel(ylabel)
@@ -42,42 +33,57 @@ def plot_metric(y_std, y_pipe, filename, ylabel, title=None):
         plt.title(title)
 
     plt.legend()
-    plt.tight_layout()
+    # plt.tight_layout()
 
     plt.savefig(filename)
     print(f"Plot saved to {filename}")
     plt.close()
 
-
 def main():
     if not os.path.exists(RESULTS_DIR):
-        print(f"Directory {RESULTS_DIR} not found. Run the experiment first.")
+        print(f"Directory {RESULTS_DIR} not found.")
         return
-
+    
     if not os.path.exists("figures"):
         os.makedirs("figures")
 
     try:
-        # Load Cost Data
         cost_std = np.load(os.path.join(RESULTS_DIR, "cost_standard.npy"))
         cost_pipe = np.load(os.path.join(RESULTS_DIR, "cost_pipelined.npy"))
-
-        # Load Consensus Data
         cons_std = np.load(os.path.join(RESULTS_DIR, "consensus_standard.npy"))
         cons_pipe = np.load(os.path.join(RESULTS_DIR, "consensus_pipelined.npy"))
+
+        # Check for infinity and replace with NaN (Matplotlib ignores NaNs safely)
+        cost_std = np.where(np.isinf(cost_std), np.nan, cost_std)
+        cost_pipe = np.where(np.isinf(cost_pipe), np.nan, cost_pipe)
+        cons_std = np.where(np.isinf(cons_std), np.nan, cons_std)
+        cons_pipe = np.where(np.isinf(cons_pipe), np.nan, cons_pipe)
+
+        # Remove negative values (if any) to avoid issues with log scale
+        cost_std = np.where(cost_std < 0, np.nan, cost_std)
+        cost_pipe = np.where(cost_pipe < 0, np.nan, cost_pipe)
+        cons_std = np.where(cons_std < 0, np.nan, cons_std)
+        cons_pipe = np.where(cons_pipe < 0, np.nan, cons_pipe)
+
+        # clip extreme outliers for better visualization
+        cost_std = np.clip(cost_std, 1e-15, 1e2)
+        cost_pipe = np.clip(cost_pipe, 1e-15, 1e2)
+        cons_std = np.clip(cons_std, 1e-15, 1e2)
+        cons_pipe = np.clip(cons_pipe, 1e-15, 1e2)
+
     except FileNotFoundError:
-        print("Data files not found. Please re-run experiment_pipelined.py")
+        print("Data files not found.")
         return
 
-    # 1. Plot Cost Suboptimality
-    subopt_std = cost_std - BASELINE_LOSS
-    subopt_pipe = cost_pipe - BASELINE_LOSS
-    plot_metric(subopt_std, subopt_pipe, COST_OUT_FILE, "Average Cost Suboptimality")
+    # Plot Cost Suboptimality
+    plot_metric(cost_std, cost_pipe, COST_OUT_FILE, 
+                r"Cost Suboptimality $f(x) - f^*$", 
+                baseline_subopt=True)
 
-    # 2. Plot Consensus Suboptimality
-    # Consensus metric is already 1/N * sum ||x_i - mean||^2, so baseline is 0
-    plot_metric(cons_std, cons_pipe, CONS_OUT_FILE, "Average Consensus Suboptimality")
-
+    # Plot Consensus Suboptimality
+    plot_metric(cons_std, cons_pipe, CONS_OUT_FILE, 
+                r"Consensus Suboptimality (Variance)", 
+                baseline_subopt=False)
 
 if __name__ == "__main__":
     main()
