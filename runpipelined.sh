@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# ONLY WORKS WITH BASH SHELL
+
 # Navigate to experiments folder
 cd experiments || exit
 
@@ -7,40 +9,45 @@ echo "=================================================="
 echo "Running Pipelined DT-GO (Evolving Topology)"
 echo "=================================================="
 
-# Define number of parallel experiments
-NUM_EXPERIMENTS=100
+# Define number of experiments
+NUM_EXPERIMENTS=1000  # Increased example count
 START_SEED=1
+MAX_PARALLEL=50      # Limit concurrent jobs
 
-# Calculate the end seed based on number of experiments
+# Calculate the end seed
 END_SEED=$((START_SEED + NUM_EXPERIMENTS - 1))
 
 # Create logs folder
 mkdir -p logs
 
-echo "Starting $NUM_EXPERIMENTS parallel runs (Seeds $START_SEED to $END_SEED)..."
+echo "Starting $NUM_EXPERIMENTS runs (Seeds $START_SEED to $END_SEED)"
+echo "Concurrency limited to $MAX_PARALLEL processes."
 
-# Use seq to generate the range of seeds
 for SEED in $(seq $START_SEED $END_SEED)
 do
+    # 1. Check active background jobs. 
+    # If >= MAX_PARALLEL, wait a bit and check again.
+    while [ "$(jobs -r | wc -l)" -ge "$MAX_PARALLEL" ]; do
+        sleep 1
+    done
+
     echo "Launching Experiment with Seed $SEED..."
     
-    # Run in background
+    # 2. Run in background
     python experiment_pipelined.py \
         --n_agents 100 \
         --learning_rate 2 \
         --seed "$SEED" \
         --results_folder "results" > "logs/pipe_seed_${SEED}.log" 2>&1 &
         
-    # Optional: small sleep to avoid OS process spawn race conditions
-    sleep 0.1
 done
 
-echo "All processes launched. Waiting for completion..."
+echo "All jobs scheduled. Waiting for remaining processes to finish..."
 wait
 
 echo "All experiments finished. Generating Plots..."
 
-# Run the updated plotting script
+# Run the plotting script
 python plot_pipelined.py
 
 echo "Done."
