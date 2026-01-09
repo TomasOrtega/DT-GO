@@ -18,6 +18,7 @@ class PipelinedExperiment:
         self.n_rounds = args.n_rounds
         self.learning_rate = args.learning_rate
         self.seed = args.seed
+        self.d_clip_max = args.d_clip_max
 
         # Set random seed for reproducibility
         np.random.seed(self.seed)
@@ -144,9 +145,13 @@ class PipelinedExperiment:
             else:
                 pi_active = pi_target
 
-            # --- D) Optimization Step with Dynamic D ---
+            # --- D) Optimization Step with Dynamic D (CLIPPED) ---
             D_dynamic = 1.0 / (self.n_agents * pi_active + 1e-10)
-            self.update_step(X_pipe, W_curr, D_dynamic)
+
+            # This prevents explosive gradients when pi_active is very small
+            D_clipped = np.clip(D_dynamic, 0, self.d_clip_max)
+
+            self.update_step(X_pipe, W_curr, D_clipped)
 
             # ==========================
             # RECORD METRICS
@@ -228,6 +233,13 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=2)
     parser.add_argument("--seed", type=int, default=0, help="Random seed for this run")
     parser.add_argument("--results_folder", type=str, default="results")
+    parser.add_argument(
+        "--d_clip_max",
+        type=float,
+        default=2.0,
+        help="Maximum value for the correction factor D to prevent exploding gradients.",
+    )
+
     args = parser.parse_args()
 
     exp = PipelinedExperiment(args)
