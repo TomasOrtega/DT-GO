@@ -119,7 +119,7 @@ class PipelinedExperiment:
         # ==========================
         # PHASE 1: MAIN EXPERIMENT
         # ==========================
-        for k in range(self.n_rounds):
+        for k in tqdm(range(self.n_rounds), mininterval=10):
 
             # 1. Evolve Topology
             # Now the graph starts changing.
