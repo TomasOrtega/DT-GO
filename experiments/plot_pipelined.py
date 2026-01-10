@@ -109,7 +109,7 @@ def main():
         cost_std,
         cost_pipe,
         COST_OUT_FILE,
-        r"Cost Suboptimality $f(x) - f^*$",
+        r"Cost suboptimality",
         baseline_subopt=True,
     )
 
@@ -118,7 +118,7 @@ def main():
         cons_std,
         cons_pipe,
         CONS_OUT_FILE,
-        r"Consensus Suboptimality (Variance)",
+        r"Consensus suboptimality",
         baseline_subopt=False,
     )
 

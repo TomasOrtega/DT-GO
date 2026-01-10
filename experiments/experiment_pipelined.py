@@ -229,14 +229,14 @@ class PipelinedExperiment:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_agents", type=int, default=100)
-    parser.add_argument("--n_rounds", type=int, default=3000)
+    parser.add_argument("--n_rounds", type=int, default=2500)
     parser.add_argument("--learning_rate", type=float, default=2)
     parser.add_argument("--seed", type=int, default=0, help="Random seed for this run")
     parser.add_argument("--results_folder", type=str, default="results")
     parser.add_argument(
         "--d_clip_max",
         type=float,
-        default=2.0,
+        default=5.0,
         help="Maximum value for the correction factor D to prevent exploding gradients.",
     )
 
