@@ -59,7 +59,6 @@ class PipelinedExperiment:
 
         # --- PRE-CALCULATE STATIC D (Baseline) ---
         # The Standard Algorithm calibrates ONLY on the initial graph (G_0).
-        # It assumes the topology never changes.
         W_inf_init = np.linalg.matrix_power(W_curr, 100)
         pi_init = W_inf_init[0, :]
         D_static = 1.0 / (self.n_agents * pi_init + 1e-10)
@@ -72,8 +71,11 @@ class PipelinedExperiment:
         # Shadow variable to track the changing eigenvectors
         V_shadow = np.eye(self.n_agents)
 
-        # Current estimate of the stationary distribution
+        # Default initialization (uniform) - will be overwritten after warm-up
         pi_active = np.ones(self.n_agents) / self.n_agents
+
+        # Network Size Detection State (Bootstrap with known N)
+        n_detected = float(self.n_agents)
 
         # Handover / Fading Logic
         T_est = 30  # Estimation window length
@@ -82,49 +84,52 @@ class PipelinedExperiment:
         pi_old = pi_active.copy()
         pi_target = pi_active.copy()
 
+        # Perturbation Probability
+        p_perturb = 1e-4
+
         # Metrics
         cost_std_hist = []
         cost_pipe_hist = []
         cons_std_hist = []
         cons_pipe_hist = []
 
-        # Perturbation Probability
-        p_perturb = 1e-4
+        # ==========================
+        # PHASE 0: WARM-UP (Fixed Topology)
+        # ==========================
+        # Run estimation for T_est rounds on the FIXED initial topology.
+        # This effectively calibrates the pipelined estimator to G0.
 
-        # Using tqdm only if verbose or essentially just for this run
+        for _ in range(T_est):
+            # NO Topology Evolution here.
+            # We assume the network is static during the "calibration/warm-up" phase.
+
+            # Pipeline Estimation (V_shadow update only)
+            V_shadow = np.matmul(W_curr, V_shadow)
+
+        # --- FORCE HANDOVER AFTER WARM-UP ---
+        # Use the result of the warm-up to set the initial D for the main loop.
+        pi_warmup = np.diag(V_shadow)
+        pi_active = pi_warmup.copy()
+        pi_target = pi_warmup.copy()
+        pi_old = pi_warmup.copy()
+
+        # Reset shadow for the actual experiment
+        V_shadow = np.eye(self.n_agents)
+
+        # ==========================
+        # PHASE 1: MAIN EXPERIMENT
+        # ==========================
         for k in range(self.n_rounds):
 
-            # ==========================
-            # 0. EVOLVING TOPOLOGY (SAFE)
-            # ==========================
-            flip_mask = np.random.rand(self.n_agents, self.n_agents) < p_perturb
-            np.fill_diagonal(flip_mask, 0)
+            # 1. Evolve Topology
+            # Now the graph starts changing.
+            Adj, W_curr = self.evolve_topology(Adj, W_curr, p_perturb)
 
-            if np.any(flip_mask):
-                # 1. Create a candidate Adjacency matrix
-                # (0->1 becomes 1, 1->1 becomes 0)
-                Adj_candidate = np.abs(Adj - flip_mask)
-
-                # 2. Check if this candidate is strongly connected
-                # We need to construct a temp graph to use NetworkX's check
-                G_cand = nx.from_numpy_array(Adj_candidate, create_using=nx.DiGraph)
-
-                if nx.is_strongly_connected(G_cand):
-                    # Safe to update
-                    Adj = Adj_candidate
-                    W_curr = adj_to_W(Adj)
-                # else:
-                #   The flip would disconnect the graph.
-                #   Ignore this perturbation and keep the old topology.
-
-            # ==========================
-            # 1. STANDARD ALGORITHM
-            # ==========================
+            # 2. STANDARD ALGORITHM
+            # Uses D_static (calibrated to G0)
             self.update_step(X_std, W_curr, D_static)
 
-            # ==========================
-            # 2. PIPELINED ALGORITHM
-            # ==========================
+            # 3. PIPELINED ALGORITHM
 
             # --- A) Shadow Estimation Update ---
             V_shadow = np.matmul(W_curr, V_shadow)
@@ -145,20 +150,22 @@ class PipelinedExperiment:
             else:
                 pi_active = pi_target
 
-            # --- D) Optimization Step with Dynamic D (CLIPPED) ---
-            D_dynamic = 1.0 / (self.n_agents * pi_active + 1e-10)
-
-            # This prevents explosive gradients when pi_active is very small
+            # --- D) Optimization Step with Dynamic D ---
+            # Use n_detected (Network Size Estimation)
+            D_dynamic = 1.0 / (n_detected * pi_active + 1e-10)
             D_clipped = np.clip(D_dynamic, 0, self.d_clip_max)
+
+            # --- E) DETECT AGENTS FOR NEXT ROUND ---
+            non_zero_mask = D_clipped > 1e-6
+            if np.any(non_zero_mask):
+                n_new_est = np.sum(1.0 / D_clipped[non_zero_mask])
+                n_detected = n_new_est
 
             self.update_step(X_pipe, W_curr, D_clipped)
 
-            # ==========================
-            # RECORD METRICS
-            # ==========================
+            # 4. RECORD METRICS
             cost_std_hist.append(self.compute_cost(X_std))
             cons_std_hist.append(self.compute_consensus(X_std))
-
             cost_pipe_hist.append(self.compute_cost(X_pipe))
             cons_pipe_hist.append(self.compute_consensus(X_pipe))
 
@@ -168,6 +175,20 @@ class PipelinedExperiment:
             np.array(cons_std_hist),
             np.array(cons_pipe_hist),
         )
+
+    def evolve_topology(self, Adj, W_curr, p_perturb):
+        """Helper to handle random edge flips."""
+        flip_mask = np.random.rand(self.n_agents, self.n_agents) < p_perturb
+        np.fill_diagonal(flip_mask, 0)
+
+        if np.any(flip_mask):
+            Adj_candidate = np.abs(Adj - flip_mask)
+            G_cand = nx.from_numpy_array(Adj_candidate, create_using=nx.DiGraph)
+            if nx.is_strongly_connected(G_cand):
+                Adj = Adj_candidate
+                W_curr = adj_to_W(Adj)
+
+        return Adj, W_curr
 
     def run(self):
         # Define expected output files
