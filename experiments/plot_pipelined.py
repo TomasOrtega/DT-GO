@@ -57,7 +57,7 @@ def plot_metric(y_std, y_pipe, filename, ylabel, title=None, baseline_subopt=Fal
     rounds = np.arange(1, len(y_std) + 1)
 
     plt.plot(rounds, y_std, label=r"Standard", linestyle="--", linewidth=1.0)
-    plt.plot(rounds, y_pipe, label=r"Pipelined (EMA)", linestyle="-", linewidth=1.0)
+    plt.plot(rounds, y_pipe, label=r"Pipelined", linestyle="-", linewidth=1.0)
 
     plt.xlabel("Round")
     plt.ylabel(ylabel)
