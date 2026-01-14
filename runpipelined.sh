@@ -10,9 +10,9 @@ echo "Running Pipelined DT-GO (Evolving Topology)"
 echo "=================================================="
 
 # Define number of experiments
-NUM_EXPERIMENTS=1000  # Increased example count
+NUM_EXPERIMENTS=10000  # Increased example count
 START_SEED=1
-MAX_PARALLEL=100      # Limit concurrent jobs
+MAX_PARALLEL=32      # Limit concurrent jobs
 
 # Calculate the end seed
 END_SEED=$((START_SEED + NUM_EXPERIMENTS - 1))
