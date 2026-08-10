@@ -1,0 +1,55 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite it and the relevant paper listed in
+  the references.
+title: DT-GO
+abstract: >-
+  Code for Delay Tolerant Gossiped Optimization and the experiments presented
+  in the associated papers on decentralized optimization in networks with
+  arbitrary delays.
+type: software
+authors:
+  - family-names: Ortega
+    given-names: Tomas
+  - family-names: Jafarkhani
+    given-names: Hamid
+repository-code: "https://github.com/TomasOrtega/DT-GO"
+license: Apache-2.0
+keywords:
+  - decentralized optimization
+  - distributed optimization
+  - gossip algorithms
+  - network delays
+references:
+  - type: article
+    title: >-
+      Decentralized Optimization in Time-Varying Networks with Arbitrary
+      Delays
+    authors:
+      - family-names: Ortega
+        given-names: Tomas
+      - family-names: Jafarkhani
+        given-names: Hamid
+    year: 2024
+    identifiers:
+      - type: other
+        value: "arXiv:2405.19513"
+        description: arXiv identifier
+    url: "https://arxiv.org/abs/2405.19513"
+    keywords:
+      - cs.LG
+  - type: article
+    title: Decentralized Optimization in Networks with Arbitrary Delays
+    authors:
+      - family-names: Ortega
+        given-names: Tomas
+      - family-names: Jafarkhani
+        given-names: Hamid
+    year: 2024
+    identifiers:
+      - type: other
+        value: "arXiv:2401.11344"
+        description: arXiv identifier
+    url: "https://arxiv.org/abs/2401.11344"
+    keywords:
+      - math.OC
